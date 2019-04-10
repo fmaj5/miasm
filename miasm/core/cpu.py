@@ -1286,7 +1286,7 @@ class cls_mn(with_metaclass(metamn, object)):
                     return out[i]
             raise NotImplementedError(
                 'Multiple disas: \n' +
-                "\n".join(str(x) for x in out)
+                "\n".join(str(x) for x in out) + str(offset)
             )
         return out[0]
 

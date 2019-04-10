@@ -2451,6 +2451,10 @@ armtop("add", [bs('1010'), sppc, rdl, off8sppc], [rdl, sppc, off8sppc])
 armtop("addsp", [bs('10110000'), bs_addsubsp_name, sp, off7], [sp, off7])
 armtop("pushpop", [bs('1011'), bs_pushpop_name, bs('10'), pclr, trlistpclr], [trlistpclr])
 armtop("btransfersp", [bs('1100'),  bs_tbtransfer_name, rbl_wb, trlist])
+
+armtop("btransfersp", [bs('1110100010'), wback, bs_tbtransfer_name, rn_wb, pc_in, lr_in, bs('0'), trlist13pclr])
+# armtop("pop",         [bs('1110100010'), bs('1'), bs('1'), bs('1101'), pc_in, lr_in, bs('0'), trlist13pclr], [trlist13pclr])
+
 armtop("br", [bs('1101'),  bs_br_name, offs8])
 armtop("blx", [bs("01000111"),  bs('1'), rm, bs('000')])
 armtop("svc", [bs('11011111'),  imm8])
