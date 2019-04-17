@@ -365,11 +365,9 @@ class IRBlock(object):
             for dst, src in viewitems(assignblk):
                 if dst.is_id("IRDst"):
                     if final_dst is not None:
-                        #raise ValueError('Multiple destinations! 1.' + str(final_dst) + " 2." + str(src))
-                        print("Multiple destinations!")
-                    else:
-                        final_dst = src
-                        final_linenb = linenb
+                        raise ValueError('Multiple destinations!')
+                    final_dst = src
+                    final_linenb = linenb
         self._dst = final_dst
         self._dst_linenb = final_linenb
         return final_dst
