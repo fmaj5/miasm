@@ -365,7 +365,8 @@ class IRBlock(object):
             for dst, src in viewitems(assignblk):
                 if dst.is_id("IRDst"):
                     if final_dst is not None:
-                        raise ValueError('Multiple destinations!')
+                        # raise ValueError('Multiple destinations!')
+                        break
                     final_dst = src
                     final_linenb = linenb
         self._dst = final_dst
@@ -387,7 +388,8 @@ class IRBlock(object):
             new_assignblk = {}
             for dst, src in viewitems(assignblk):
                 if dst.is_id("IRDst"):
-                    assert dst_found is False
+                    # assert dst_found is False
+                    break
                     dst_found = True
                     new_assignblk[dst] = value
                 else:
