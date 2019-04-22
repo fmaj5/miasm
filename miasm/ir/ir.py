@@ -833,7 +833,7 @@ class IntermediateRepresentation(object):
     def add_block(self, block, gen_pc_updt=False):
         """
         DEPRECATED function
-        Use add_block instead of add_block
+        Use add_asmblock_to_ircfg instead of add_block
         """
         warnings.warn("""DEPRECATION WARNING
         ircfg is now out of IntermediateRepresentation
@@ -846,7 +846,7 @@ class IntermediateRepresentation(object):
     def add_bloc(self, block, gen_pc_updt=False):
         """
         DEPRECATED function
-        Use add_block instead of add_block
+        Use add_asmblock_to_ircfg instead of add_bloc
         """
         self.add_block(block, gen_pc_updt)
 
