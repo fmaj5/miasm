@@ -34,10 +34,19 @@ class arm_CGen(CGen):
 
             if instr.name.startswith("IT"):
                 assignments = []
-                label = self.ir_arch.get_instr_label(instr)
+                label = self.ir_arch.get_loc_key_for_instr(instr)
                 irblocks = []
                 index, irblocks = self.ir_arch.do_it_block(label, index, block, assignments, True)
-                irblocks_list += irblocks
+
+                for irblock_l in irblocks:
+                    out = []
+
+                    for irblock in irblock_l:
+                        new_irblock = irblock.simplify(expr_simp_high_to_explicit)[1]
+                        out.append(new_irblock)
+                    irblock_l = out
+
+                    irblocks_list.append(irblock_l)
                 continue
 
 
