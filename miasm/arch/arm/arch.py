@@ -1439,6 +1439,7 @@ imm16 = bs(l=16, cls=(arm_imm, m_arg))
 imm12_off = bs(l=12, fname="imm")
 
 imm2_noarg = bs(l=2, fname="imm")
+imm3_noarg = bs(l=3, fname="imm3")
 imm4_noarg = bs(l=4, fname="imm4")
 
 
@@ -2431,6 +2432,7 @@ armtop("addsubr", [bs('000110'),  bs_addsub_name, rnl, rsl, rdl], [rdl, rsl, rnl
 armtop("addsubi", [bs('000111'),  bs_addsub_name, off3, rsl, rdl], [rdl, rsl, off3])
 armtop("mcas", [bs('001'), bs_mov_cmp_add_sub_name, rnl, off8])
 armtop("alu", [bs('010000'), bs_alu_name, rsl, rdl], [rdl, rsl])
+
   # should not be used ??
 armtop("hiregop00", [bs('010001'), bs_hiregop_name, bs('00'), rsl, rdl], [rdl, rsl])
 armtop("hiregop01", [bs('010001'), bs_hiregop_name, bs('01'), rsh, rdl], [rdl, rsh])
@@ -3370,3 +3372,6 @@ armtop("tbh",  [bs('111010001101'), rn_noarg, bs('11110000000'), bs('1'), bs_der
 armtop("dsb",  [bs('111100111011'), bs('1111'), bs('1000'), bs('1111'), bs('0100'), barrier_option])
 
 armtop("adr", [bs('11110'), imm12_1, bs('100000'), bs('1111'), bs('0'), imm12_3, rd, imm12_8_t4], [rd, imm12_8_t4])
+
+
+armtop("teq", [bs('111010101001'), rn_noarg, bs('0'), imm3_noarg, bs('1111'), imm2_noarg, imm_stype, rm_noarg])
