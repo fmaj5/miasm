@@ -3374,4 +3374,4 @@ armtop("dsb",  [bs('111100111011'), bs('1111'), bs('1000'), bs('1111'), bs('0100
 armtop("adr", [bs('11110'), imm12_1, bs('100000'), bs('1111'), bs('0'), imm12_3, rd, imm12_8_t4], [rd, imm12_8_t4])
 
 
-armtop("teq", [bs('111010101001'), rn_noarg, bs('0'), imm3_noarg, bs('1111'), imm2_noarg, imm_stype, rm_noarg])
+armtop("teq", [bs('111010101001'), rn, bs('0'), imm3_noarg, bs('1111'), imm2_noarg, imm_stype, rm])
