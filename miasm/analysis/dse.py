@@ -50,6 +50,8 @@ Here are a few remainings TODO:
 from builtins import range
 from collections import namedtuple
 
+from miasm.arch.arm.sem import *
+
 try:
     import z3
 except ImportError:
@@ -67,6 +69,7 @@ from miasm.ir.translators import Translator
 from miasm.analysis.expression_range import expr_range
 from miasm.analysis.modularintervals import ModularIntervals
 from miasm.core.locationdb import LocationDB
+from miasm.core.asmblock import AsmBlock
 
 DriftInfo = namedtuple("DriftInfo", ["symbol", "computed", "expected"])
 
@@ -311,6 +314,20 @@ class DSEEngine(object):
         if errors:
             raise DriftException(errors)
 
+    def parse_itt(self, instr):
+        name = instr.name
+        assert name.startswith('IT')
+        name = name[1:]
+        out = []
+        for hint in name:
+            if hint == 'T':
+                out.append(0)
+            elif hint == "E":
+                out.append(1)
+            else:
+                raise ValueError("IT name invalid %s" % instr)
+        return out, instr.args[0]
+
     def callback(self, _):
         """Called before each instruction"""
         # Assert synchronization with concrete execution
@@ -346,7 +363,27 @@ class DSEEngine(object):
             self.ircfg.blocks.clear()# = {}
 
             ## Update current state
-            asm_block = self.mdis.dis_block(cur_addr)
+            asm_block = self.mdis.dis_block(cur_addr)  # type: AsmBlock
+
+            # check if IT block
+            """
+            instr = asm_block.lines[0]
+            if instr.name.startswith("IT"):
+
+                print("it IT block")
+
+                it_hints, it_cond = self.parse_itt(instr)
+                cond_num = cond_dct_inv[it_cond.name]
+                cond_eq = tab_cond[cond_num]
+
+                self.update_state({
+                    self.ir_arch.pc: ExprInt(self.jitter.pc + 2, 32),
+                })
+                self.jitter.pc = self.jitter.pc + 2
+
+                return True
+            """
+
             self.ir_arch.add_asmblock_to_ircfg(asm_block, self.ircfg)
             self.addr_to_cacheblocks[cur_addr] = dict(self.ircfg.blocks)
 
