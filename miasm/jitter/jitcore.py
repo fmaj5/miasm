@@ -26,6 +26,7 @@ from miasm.core.interval import interval
 from miasm.core.utils import BoundedDict
 from miasm.expression.expression import LocKey
 from miasm.jitter.csts import *
+from miasm.arch.arm.sem import *
 
 class JitCore(object):
 
@@ -71,6 +72,9 @@ class JitCore(object):
             dontdis_retcall=False,
             split_dis=self.split_dis,
         )
+
+        self.then_offsets = []
+        self.else_offsets = []
 
 
     def set_options(self, **kwargs):
@@ -159,6 +163,20 @@ class JitCore(object):
         self.add_block_to_mem_interval(vm, cur_block)
         return cur_block
 
+    def parse_itt(self, instr):
+        name = instr.name
+        assert name.startswith('IT')
+        name = name[1:]
+        out = []
+        for hint in name:
+            if hint == 'T':
+                out.append(0)
+            elif hint == "E":
+                out.append(1)
+            else:
+                raise ValueError("IT name invalid %s" % instr)
+        return out, instr.args[0]
+
     def run_at(self, cpu, offset, stop_offsets):
         """Run from the starting address @offset.
         Execution will stop if:
@@ -176,6 +194,114 @@ class JitCore(object):
 
         if offset not in self.offset_to_jitted_func:
             # Need to JiT the block
+
+            asm_block = self.mdis.dis_block(offset)  # type: AsmBlock
+            instr = asm_block.lines[0]
+            if instr.name.startswith("IT"):
+
+                print("it is IT block in jitter")
+
+                assert len(self.then_offsets) == 0
+                assert len(self.else_offsets) == 0
+
+                self.then_offsets.clear()
+                self.else_offsets.clear()
+
+                print(instr)
+
+                newpc = offset + instr.l
+
+                it_hints, it_cond = self.parse_itt(instr)
+                cond_num = cond_dct_inv[it_cond.name]
+                cond_eq = tab_cond[cond_num]
+
+                off = offset
+
+                for hint in it_hints:
+
+                    # get next inst offset
+                    off = off + self.mdis.dis_block(off).lines[0].l
+
+                    if hint == 0:
+                        # then insts
+
+                        if "EQ" in str(instr):
+                            if cpu.zf == 1:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "NE" in str(instr):
+                            if cpu.zf == 0:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "LT" in str(instr):
+                            if cpu.of != cpu.nf:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        else:
+                            raise NotImplementedError("IT cond missing")
+
+                    else:
+                        # else insts
+
+                        if "EQ" in str(instr):
+                            if cpu.zf == 0:
+                                self.else_offsets.append([off, 1])
+                            else:
+                                self.else_offsets.append([off, 0])
+
+                        elif "NE" in str(instr):
+                            if cpu.zf == 1:
+                                self.else_offsets.append([off, 1])
+                            else:
+                                self.else_offsets.append([off, 0])
+
+                        elif "LT" in str(instr):
+                            if cpu.of != cpu.nf:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
+                        else:
+                            raise NotImplementedError("IT cond missing")
+
+                return newpc
+
+            for off, ex in self.then_offsets:
+                if off == offset:
+
+                    print("jit: offset {0:x} behind IT block".format(offset))
+
+                    of, ex = self.then_offsets.pop(0)
+                    assert of == offset
+
+                    # ignore and inc pc
+                    if ex == 0:
+                        print("cond unstatify, ignore")
+                        return offset + instr.l
+                    else:
+                        print("cond statify, jit")
+                        break
+
+            for off, ex in self.else_offsets:
+                if off == offset:
+
+                    print("jit: offset {0:x} behind IT block".format(offset))
+                    of, ex = self.else_offsets.pop(0)
+                    assert of == offset
+
+                    if ex == 0:
+                        print("cond unstatify, ignore")
+                        return offset + instr.l
+                    else:
+                        print("cond statify, jit")
+                        break
+
             cur_block = self.disasm_and_jit_block(offset, cpu.vmmngr)
             if isinstance(cur_block, AsmBlockBad):
                 errno = cur_block.errno

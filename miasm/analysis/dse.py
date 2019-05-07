@@ -180,6 +180,9 @@ class DSEEngine(object):
         self.symb_concrete = None # Concrete SymbExec for path desambiguisation
         self.mdis = None # DisasmEngine
 
+        self.then_offsets = []
+        self.else_offsets = []
+
     def prepare(self):
         """Prepare the environment for attachment with a jitter"""
         # Disassembler
@@ -366,26 +369,125 @@ class DSEEngine(object):
             asm_block = self.mdis.dis_block(cur_addr)  # type: AsmBlock
 
             # check if IT block
-            """
             instr = asm_block.lines[0]
             if instr.name.startswith("IT"):
 
-                print("it IT block")
+                print("it is IT block in dse")
+                print(instr)
+
+                assert len(self.then_offsets) == 0
+                assert len(self.else_offsets) == 0
+
+                self.then_offsets.clear()
+                self.else_offsets.clear()
 
                 it_hints, it_cond = self.parse_itt(instr)
                 cond_num = cond_dct_inv[it_cond.name]
                 cond_eq = tab_cond[cond_num]
 
                 self.update_state({
-                    self.ir_arch.pc: ExprInt(self.jitter.pc + 2, 32),
+                    self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
                 })
-                self.jitter.pc = self.jitter.pc + 2
+
+                off = cur_addr
+
+                for hint in it_hints:
+
+                    # get next inst offset
+                    off = off + self.mdis.dis_block(off).lines[0].l
+
+                    if hint == 0:
+                        # then insts
+
+                        if "EQ" in str(instr):
+                            if self.jitter.cpu.zf == 1:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "NE" in str(instr):
+                            if self.jitter.cpu.zf == 0:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "LT" in str(instr):
+                            if self.jitter.cpu.of != self.jitter.cpu.nf:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+                        else:
+                            raise NotImplementedError("IT cond missing")
+
+                    else:
+                        # else insts
+
+                        if "EQ" in str(instr):
+                            if self.jitter.cpu.zf == 0:
+                                self.else_offsets.append([off, 1])
+                            else:
+                                self.else_offsets.append([off, 0])
+
+                        elif "NE" in str(instr):
+                            if self.jitter.cpu.zf == 1:
+                                self.else_offsets.append([off, 1])
+                            else:
+                                self.else_offsets.append([off, 0])
+
+                        elif "LT" in str(instr):
+                            if self.jitter.cpu.of != self.jitter.cpu.nf:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
+                        else:
+                            raise NotImplementedError("IT cond missing")
 
                 return True
-            """
 
             self.ir_arch.add_asmblock_to_ircfg(asm_block, self.ircfg)
             self.addr_to_cacheblocks[cur_addr] = dict(self.ircfg.blocks)
+
+        asm_block = self.mdis.dis_block(cur_addr)  # type: AsmBlock
+        instr = asm_block.lines[0]
+        for off, ex in self.then_offsets:
+            if off == cur_addr:
+
+                print("dse: offset {0:x} behind IT block".format(cur_addr))
+                of, ex = self.then_offsets.pop(0)
+                assert of == cur_addr
+
+                # ignore and inc pc
+                if ex == 0:
+
+                    self.update_state({
+                        self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
+                    })
+                    print("cond unstatify, ignore")
+                    return True
+
+                else:
+                    print("cond statify, symbolic")
+                    break
+
+        for off, ex in self.else_offsets:
+            if off == cur_addr:
+
+                print("dse: offset {0:x} behind IT block".format(cur_addr))
+                of, ex = self.else_offsets.pop(0)
+                assert of == cur_addr
+
+                if ex == 0:
+
+                    self.update_state({
+                        self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
+                    })
+
+                    print("cond unstatify, ignore")
+                    return True
+                else:
+                    print("cond statify, symbolic")
+                    break
 
         # Emulate the current instruction
         self.symb.reset_modified()
