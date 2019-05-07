@@ -416,6 +416,25 @@ class DSEEngine(object):
                                 self.then_offsets.append([off, 1])
                             else:
                                 self.then_offsets.append([off, 0])
+
+                        elif "CC" in str(instr):
+                            if self.jitter.cpu.cf == 0:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "LS" in str(instr):
+                            if self.jitter.cpu.cf == 1 or self.jitter.cpu.zf == 0:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "CS" in str(instr):
+                            if self.jitter.cpu.cf == 1:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
                         else:
                             raise NotImplementedError("IT cond missing")
 
@@ -436,6 +455,24 @@ class DSEEngine(object):
 
                         elif "LT" in str(instr):
                             if self.jitter.cpu.of != self.jitter.cpu.nf:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
+                        elif "CC" in str(instr):
+                            if self.jitter.cpu.cf == 0:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
+                        elif "LS" in str(instr):
+                            if self.jitter.cpu.cf == 1 or self.jitter.cpu.zf == 0:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
+                        elif "CS" in str(instr):
+                            if self.jitter.cpu.cf == 1:
                                 self.else_offsets.append([off, 0])
                             else:
                                 self.else_offsets.append([off, 1])

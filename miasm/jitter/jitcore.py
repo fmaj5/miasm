@@ -243,6 +243,24 @@ class JitCore(object):
                             else:
                                 self.then_offsets.append([off, 0])
 
+                        elif "CC" in str(instr):
+                            if cpu.cf == 0:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "LS" in str(instr):
+                            if cpu.cf == 1 or cpu.zf == 0:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
+                        elif "CS" in str(instr):
+                            if cpu.cf == 1:
+                                self.then_offsets.append([off, 1])
+                            else:
+                                self.then_offsets.append([off, 0])
+
                         else:
                             raise NotImplementedError("IT cond missing")
 
@@ -266,6 +284,25 @@ class JitCore(object):
                                 self.else_offsets.append([off, 0])
                             else:
                                 self.else_offsets.append([off, 1])
+
+                        elif "CC" in str(instr):
+                            if cpu.cf == 0:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
+                        elif "LS" in str(instr):
+                            if cpu.cf == 1 or cpu.zf == 0:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
+                        elif "CS" in str(instr):
+                            if cpu.cf == 1:
+                                self.else_offsets.append([off, 0])
+                            else:
+                                self.else_offsets.append([off, 1])
+
 
                         else:
                             raise NotImplementedError("IT cond missing")
