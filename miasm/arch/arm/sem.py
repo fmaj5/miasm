@@ -1314,6 +1314,10 @@ def nop(ir, instr):
     e = []
     return e, []
 
+def dmb(ir, instr, a):
+    # XXX TODO
+    e = []
+    return e, []
 
 def dsb(ir, instr, a):
     # XXX TODO
@@ -1642,6 +1646,7 @@ mnemo_nocond = {'lsr': lsr,
                 'smlatt': smlatt,
                 'uadd8': uadd8,
                 'sel': sel,
+                'dmb': dmb,
                 }
 
 mn_cond_x = [mnemo_condm0,

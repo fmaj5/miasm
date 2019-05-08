@@ -3345,6 +3345,7 @@ armtop("str",  [bs('111110000100'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_d
 armtop("str",  [bs('111110000100'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
 armtop("strb", [bs('111110001000'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("strb", [bs('111110000000'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
+armtop("strb", [bs('111110000000'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
 armtop("strh", [bs('111110001010'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("strh", [bs('111110000010'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
 
@@ -3370,6 +3371,7 @@ armtop("clz",  [bs('111110101011'), rm, bs('1111'), rd, bs('1000'), rm_cp], [rd,
 armtop("tbb",  [bs('111010001101'), rn_noarg, bs('11110000000'), bs('0'), bs_deref_reg_reg], [bs_deref_reg_reg])
 armtop("tbh",  [bs('111010001101'), rn_noarg, bs('11110000000'), bs('1'), bs_deref_reg_reg_lsl_1], [bs_deref_reg_reg_lsl_1])
 armtop("dsb",  [bs('111100111011'), bs('1111'), bs('1000'), bs('1111'), bs('0100'), barrier_option])
+armtop("dmb",  [bs('111100111011'), bs('1111'), bs('1000'), bs('1111'), bs('0101'), barrier_option])
 
 armtop("adr", [bs('11110'), imm12_1, bs('100000'), bs('1111'), bs('0'), imm12_3, rd, imm12_8_t4], [rd, imm12_8_t4])
 
