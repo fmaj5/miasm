@@ -1530,8 +1530,10 @@ mnemo_condm0 = {'add': add,
                 'ldr': ldr,
                 'ldrd': ldrd,
                 'ldrsb': ldrsb,
+                'ldrex': ldr,  # XXX TODO: check
                 'str': l_str,
                 'strd': l_strd,
+                'strex': l_strd, # XXX TODO: check
                 'b': b,
                 'bl': bl,
                 'svc': svc,

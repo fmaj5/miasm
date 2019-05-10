@@ -2351,6 +2351,7 @@ off5h = bs(l=5, cls=(arm_offh,), fname="off")
 sppc = bs(l=1, cls=(arm_sppc,))
 
 off12 = bs(l=12, cls=(arm_off,), fname="off", order=-1)
+off8_ = bs(l=8, cls=(arm_off,), fname="off", order=-1)
 rn_deref = bs(l=4, cls=(arm_deref_reg_imm,), fname="rt")
 
 
@@ -3363,7 +3364,8 @@ armtop("ldrsb",[bs('111110011001'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("ldrsh",[bs('111110011011'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("ldrh", [bs('111110001011'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("ldrh", [bs('111110000011'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
-armtop("ldrex", [bs('111010000101'), rn_noarg, rt, bs('1111'), imm8])
+armtop("ldrex",[bs('111010000101'), rn_deref, rt, bs('1111'), off8_], [rt, rn_deref])
+armtop("strex", [bs('111010000100'), rn_deref, rt, rd, off8_], [rd, rt, rn_deref])
 
 armtop("pld",  [bs('111110001001'), rn_deref, bs('1111'), off12], [rn_deref])
 armtop("pldw", [bs('111110001011'), rn_deref, bs('1111'), off12], [rn_deref])
