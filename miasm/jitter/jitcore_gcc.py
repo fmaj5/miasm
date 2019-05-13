@@ -50,7 +50,8 @@ class JitCore_Gcc(JitCore_Cc_Base):
             ext = ".so" if not is_win else ".pyd"
         fname_out = os.path.join(self.tempdir, "%s%s" % (block_hash, ext))
 
-        if not os.access(fname_out, os.R_OK | os.X_OK):
+        test = True
+        if not os.access(fname_out, os.R_OK | os.X_OK) or test:
             func_code = self.gen_c_code(block)
 
             # Create unique C file
