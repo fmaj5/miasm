@@ -1415,6 +1415,7 @@ ppi_b_sp = ppi_b_sp_mn(l=1, mn_mod=['F', 'E'], fname='ppi')
 
 sbit = bs(l=1, fname="sbit")
 rn_sp = bs("1101", cls=(arm_reg_wb,), fname='rnsp')
+rn_sp_ = bs("1101", cls=(arm_gpreg,), fname='rnsp')
 rn_wb = bs(l=4, cls=(arm_reg_wb_nosp,), fname='rn')
 rlist = bs(l=16, cls=(arm_rlist,), fname='rlist')
 
@@ -3300,13 +3301,26 @@ armtop("mov", [bs('11101010010'), scc, bs('1111'), bs('0'), imm5_3, rd_nosppc, i
 
 
 armtop("orr", [bs('11110'), imm12_1, bs('00010'), scc, rn_nosppc, bs('0'), imm12_3, rd, imm12_8] )
-armtop("add", [bs('11110'), imm12_1, bs('01000'), bs('0'), rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
-armtop("adds",[bs('11110'), imm12_1, bs('01000'), bs('1'), rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
+
+# add immediate
+# t3
+armtop("adds", [bs('11110'), imm12_1, bs('01000'), scc, rn_nosp, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_nosp, imm12_8])
+# t4
+armtop("add", [bs('11110'), imm12_1, bs('10000'), bs('0'), rn_nosppc, bs('0'), imm12_3, rd, imm12_8_t4], [rd, rn_nosppc, imm12_8_t4])
+
+
+# add SP
+# t3
+armtop("adds",[bs('11110'), imm12_1, bs('01000'), scc, rn_sp_, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_sp_, imm12_8])
+# t4
+armtop("add",[bs('11110'), imm12_1, bs('10000'), bs('0'), rn_sp_, bs('0'), imm12_3, rd, imm12_8], [rd, rn_sp_, imm12_8])
+
+
+
 armtop("bic", [bs('11110'), imm12_1, bs('00001'), scc, rn_nosppc, bs('0'), imm12_3, rd, imm12_8], [rd, rn_nosppc, imm12_8])
 armtop("and", [bs('11110'), imm12_1, bs('00000'), scc, rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
 armtop("sub", [bs('11110'), imm12_1, bs('01101'), scc, rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
 armtop("eor", [bs('11110'), imm12_1, bs('00100'), scc, rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
-armtop("add", [bs('11110'), imm12_1, bs('10000'), scc, rn_nosppc, bs('0'), imm12_3, rd, imm12_8_t4], [rd, rn_nosppc, imm12_8_t4])
 armtop("cmp", [bs('11110'), imm12_1, bs('01101'), bs('1'), rn, bs('0'), imm12_3, bs('1111'), imm12_8] )
 
 armtop("cmp", [bs('11101011101'), bs('1'), rn, bs('0'), imm5_3, bs('1111'), imm5_2, imm_stype, rm_sh], [rn, rm_sh] )
