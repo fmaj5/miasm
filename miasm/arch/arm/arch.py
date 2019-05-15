@@ -3304,7 +3304,8 @@ armtop("orr", [bs('11110'), imm12_1, bs('00010'), scc, rn_nosppc, bs('0'), imm12
 
 # add immediate
 # t3
-armtop("adds", [bs('11110'), imm12_1, bs('01000'), scc, rn_nosp, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_nosp, imm12_8])
+# TODO: rd == 1111 and scc == 1 see CMN
+armtop("adds", [bs('11110'), imm12_1, bs('01000'), scc, rn_nosp, bs('0'), imm12_3, rd, imm12_8], [rd, rn_nosp, imm12_8])
 # t4
 armtop("add", [bs('11110'), imm12_1, bs('10000'), bs('0'), rn_nosppc, bs('0'), imm12_3, rd, imm12_8_t4], [rd, rn_nosppc, imm12_8_t4])
 
