@@ -2549,6 +2549,8 @@ class armt_gpreg_rm_shift_off(arm_reg):
 rn_nosppc = bs(l=4, cls=(arm_gpreg_nosppc,), fname="rn")
 rd_nosppc = bs(l=4, cls=(arm_gpreg_nosppc,), fname="rd")
 rm_sh = bs(l=4, cls=(armt_gpreg_rm_shift_off,), fname="rm")
+rm_nosppc = bs(l=4, cls=(arm_gpreg_nosppc,), fname="rm")
+rm_nopc = bs(l=4, cls=(arm_gpreg_nopc,), fname="rm")
 
 
 class armt2_imm12(arm_imm):
@@ -3305,14 +3307,14 @@ armtop("orr", [bs('11110'), imm12_1, bs('00010'), scc, rn_nosppc, bs('0'), imm12
 # add immediate
 # t3
 # TODO: rd == 1111 and scc == 1 see CMN
-armtop("adds", [bs('11110'), imm12_1, bs('01000'), scc, rn_nosp, bs('0'), imm12_3, rd, imm12_8], [rd, rn_nosp, imm12_8])
+armtop("add", [bs('11110'), imm12_1, bs('01000'), scc, rn_nosp, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_nosp, imm12_8])
 # t4
 armtop("add", [bs('11110'), imm12_1, bs('10000'), bs('0'), rn_nosppc, bs('0'), imm12_3, rd, imm12_8_t4], [rd, rn_nosppc, imm12_8_t4])
 
 
 # add SP
 # t3
-armtop("adds",[bs('11110'), imm12_1, bs('01000'), scc, rn_sp_, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_sp_, imm12_8])
+armtop("add",[bs('11110'), imm12_1, bs('01000'), scc, rn_sp_, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_sp_, imm12_8])
 # t4
 armtop("add",[bs('11110'), imm12_1, bs('10000'), bs('0'), rn_sp_, bs('0'), imm12_3, rd, imm12_8], [rd, rn_sp_, imm12_8])
 
@@ -3393,5 +3395,4 @@ armtop("dmb",  [bs('111100111011'), bs('1111'), bs('1000'), bs('1111'), bs('0101
 
 armtop("adr", [bs('11110'), imm12_1, bs('100000'), bs('1111'), bs('0'), imm12_3, rd, imm12_8_t4], [rd, imm12_8_t4])
 
-
-armtop("teq", [bs('111010101001'), rn, bs('0'), imm3_noarg, bs('1111'), imm2_noarg, imm_stype, rm])
+armtop("teq",  [bs('111010101001'), rn_nosppc, bs('0'), imm5_3, bs('1111'), imm5_2, imm_stype, rm_sh])
