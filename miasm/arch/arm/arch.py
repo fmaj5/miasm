@@ -1440,7 +1440,6 @@ imm16 = bs(l=16, cls=(arm_imm, m_arg))
 imm12_off = bs(l=12, fname="imm")
 
 imm2_noarg = bs(l=2, fname="imm")
-imm3_noarg = bs(l=3, fname="imm3")
 imm4_noarg = bs(l=4, fname="imm4")
 
 
@@ -2434,7 +2433,6 @@ armtop("addsubr", [bs('000110'),  bs_addsub_name, rnl, rsl, rdl], [rdl, rsl, rnl
 armtop("addsubi", [bs('000111'),  bs_addsub_name, off3, rsl, rdl], [rdl, rsl, off3])
 armtop("mcas", [bs('001'), bs_mov_cmp_add_sub_name, rnl, off8])
 armtop("alu", [bs('010000'), bs_alu_name, rsl, rdl], [rdl, rsl])
-
   # should not be used ??
 armtop("hiregop00", [bs('010001'), bs_hiregop_name, bs('00'), rsl, rdl], [rdl, rsl])
 armtop("hiregop01", [bs('010001'), bs_hiregop_name, bs('01'), rsh, rdl], [rdl, rsh])
@@ -2549,8 +2547,6 @@ class armt_gpreg_rm_shift_off(arm_reg):
 rn_nosppc = bs(l=4, cls=(arm_gpreg_nosppc,), fname="rn")
 rd_nosppc = bs(l=4, cls=(arm_gpreg_nosppc,), fname="rd")
 rm_sh = bs(l=4, cls=(armt_gpreg_rm_shift_off,), fname="rm")
-rm_nosppc = bs(l=4, cls=(arm_gpreg_nosppc,), fname="rm")
-rm_nopc = bs(l=4, cls=(arm_gpreg_nopc,), fname="rm")
 
 
 class armt2_imm12(arm_imm):
@@ -3303,27 +3299,14 @@ armtop("mov", [bs('11101010010'), scc, bs('1111'), bs('0'), imm5_3, rd_nosppc, i
 
 
 armtop("orr", [bs('11110'), imm12_1, bs('00010'), scc, rn_nosppc, bs('0'), imm12_3, rd, imm12_8] )
-
-# add immediate
-# t3
-# TODO: rd == 1111 and scc == 1 see CMN
-armtop("add", [bs('11110'), imm12_1, bs('01000'), scc, rn_nosp, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_nosp, imm12_8])
-# t4
-armtop("add", [bs('11110'), imm12_1, bs('10000'), bs('0'), rn_nosppc, bs('0'), imm12_3, rd, imm12_8_t4], [rd, rn_nosppc, imm12_8_t4])
-
-
-# add SP
-# t3
-armtop("add",[bs('11110'), imm12_1, bs('01000'), scc, rn_sp_, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn_sp_, imm12_8])
-# t4
-armtop("add",[bs('11110'), imm12_1, bs('10000'), bs('0'), rn_sp_, bs('0'), imm12_3, rd, imm12_8], [rd, rn_sp_, imm12_8])
-
-
-
+armtop("add", [bs('11110'), imm12_1, bs('01000'), bs('0'), rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
+armtop("adds",[bs('11110'), imm12_1, bs('01000'), bs('1'), rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
 armtop("bic", [bs('11110'), imm12_1, bs('00001'), scc, rn_nosppc, bs('0'), imm12_3, rd, imm12_8], [rd, rn_nosppc, imm12_8])
 armtop("and", [bs('11110'), imm12_1, bs('00000'), scc, rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
 armtop("sub", [bs('11110'), imm12_1, bs('01101'), scc, rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
 armtop("eor", [bs('11110'), imm12_1, bs('00100'), scc, rn, bs('0'), imm12_3, rd_nopc, imm12_8], [rd_nopc, rn, imm12_8])
+armtop("add", [bs('11110'), imm12_1, bs('10000'), scc, rn_nosppc, bs('0'), imm12_3, rd, imm12_8_t4], [rd, rn_nosppc, imm12_8_t4])
+armtop("add", [bs('11110'), imm12_1, bs('10000'), bs('0'), rn_sp_, bs('0'), imm12_3, rd, imm12_8], [rd, rn_sp_, imm12_8])
 armtop("cmp", [bs('11110'), imm12_1, bs('01101'), bs('1'), rn, bs('0'), imm12_3, bs('1111'), imm12_8] )
 
 armtop("cmp", [bs('11101011101'), bs('1'), rn, bs('0'), imm5_3, bs('1111'), imm5_2, imm_stype, rm_sh], [rn, rm_sh] )
@@ -3392,7 +3375,6 @@ armtop("tbb",  [bs('111010001101'), rn_noarg, bs('11110000000'), bs('0'), bs_der
 armtop("tbh",  [bs('111010001101'), rn_noarg, bs('11110000000'), bs('1'), bs_deref_reg_reg_lsl_1], [bs_deref_reg_reg_lsl_1])
 armtop("dsb",  [bs('111100111011'), bs('1111'), bs('1000'), bs('1111'), bs('0100'), barrier_option])
 armtop("dmb",  [bs('111100111011'), bs('1111'), bs('1000'), bs('1111'), bs('0101'), barrier_option])
+armtop("teq",  [bs('111010101001'), rn_nosppc, bs('0'), imm5_3, bs('1111'), imm5_2, imm_stype, rm_sh])
 
 armtop("adr", [bs('11110'), imm12_1, bs('100000'), bs('1111'), bs('0'), imm12_3, rd, imm12_8_t4], [rd, imm12_8_t4])
-
-armtop("teq",  [bs('111010101001'), rn_nosppc, bs('0'), imm5_3, bs('1111'), imm5_2, imm_stype, rm_sh])
