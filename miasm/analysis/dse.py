@@ -366,9 +366,9 @@ class DSEEngine(object):
             self.ircfg.blocks.clear()# = {}
 
             ## Update current state
-            asm_block = self.mdis.dis_block(cur_addr)  # type: AsmBlock
+            asm_block = self.mdis.dis_block(cur_addr)
 
-            # check if IT block
+            # check if IT instrs
             instr = asm_block.lines[0]
             if instr.name.startswith("IT"):
 
@@ -485,12 +485,12 @@ class DSEEngine(object):
             self.ir_arch.add_asmblock_to_ircfg(asm_block, self.ircfg)
             self.addr_to_cacheblocks[cur_addr] = dict(self.ircfg.blocks)
 
-        asm_block = self.mdis.dis_block(cur_addr)  # type: AsmBlock
+        asm_block = self.mdis.dis_block(cur_addr)
         instr = asm_block.lines[0]
         for off, ex in self.then_offsets:
             if off == cur_addr:
 
-                print("dse: offset {0:x} behind IT block".format(cur_addr))
+                print("dse: offset {0:x} behind IT block".format(cur_addr), end="")
                 of, ex = self.then_offsets.pop(0)
                 assert of == cur_addr
 
@@ -510,7 +510,7 @@ class DSEEngine(object):
         for off, ex in self.else_offsets:
             if off == cur_addr:
 
-                print("dse: offset {0:x} behind IT block".format(cur_addr))
+                print("dse: offset {0:x} behind IT block".format(cur_addr), end="")
                 of, ex = self.else_offsets.pop(0)
                 assert of == cur_addr
 
