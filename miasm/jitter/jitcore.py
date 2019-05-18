@@ -322,7 +322,7 @@ class JitCore(object):
             for off, ex in self.then_offsets:
                 if off == offset:
 
-                    print("jit: offset {0:x} behind IT block".format(offset))
+                    print("jit: offset {0:x} behind IT instruction".format(offset), end="")
 
                     of, ex = self.then_offsets.pop(0)
                     assert of == offset
@@ -338,7 +338,7 @@ class JitCore(object):
             for off, ex in self.else_offsets:
                 if off == offset:
 
-                    print("jit: offset {0:x} behind IT block".format(offset))
+                    print("jit: offset {0:x} behind IT instruction".format(offset), end="")
                     of, ex = self.else_offsets.pop(0)
                     assert of == offset
 

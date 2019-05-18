@@ -488,7 +488,7 @@ class DSEEngine(object):
         for off, ex in self.then_offsets:
             if off == cur_addr:
 
-                print("dse: offset {0:x} behind IT block".format(cur_addr), end="")
+                print("dse: offset {0:x} behind IT instruction".format(cur_addr), end="")
                 of, ex = self.then_offsets.pop(0)
                 assert of == cur_addr
 
@@ -508,7 +508,7 @@ class DSEEngine(object):
         for off, ex in self.else_offsets:
             if off == cur_addr:
 
-                print("dse: offset {0:x} behind IT block".format(cur_addr), end="")
+                print("dse: offset {0:x} behind IT instruction".format(cur_addr), end="")
                 of, ex = self.else_offsets.pop(0)
                 assert of == cur_addr
 
