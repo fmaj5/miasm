@@ -372,7 +372,7 @@ class DSEEngine(object):
             instr = asm_block.lines[0]
             if instr.name.startswith("IT"):
 
-                print("it is IT block in dse")
+                print("it is IT instr in dse")
                 print(instr)
 
                 assert len(self.then_offsets) == 0
@@ -382,8 +382,6 @@ class DSEEngine(object):
                 self.else_offsets.clear()
 
                 it_hints, it_cond = self.parse_itt(instr)
-                cond_num = cond_dct_inv[it_cond.name]
-                cond_eq = tab_cond[cond_num]
 
                 self.update_state({
                     self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
@@ -399,37 +397,37 @@ class DSEEngine(object):
                     if hint == 0:
                         # then insts
 
-                        if "EQ" in str(instr):
+                        if "EQ" in str(instr.args):
                             if self.jitter.cpu.zf == 1:
                                 self.then_offsets.append([off, 1])
                             else:
                                 self.then_offsets.append([off, 0])
 
-                        elif "NE" in str(instr):
+                        elif "NE" in str(instr.args):
                             if self.jitter.cpu.zf == 0:
                                 self.then_offsets.append([off, 1])
                             else:
                                 self.then_offsets.append([off, 0])
 
-                        elif "LT" in str(instr):
+                        elif "LT" in str(instr.args):
                             if self.jitter.cpu.of != self.jitter.cpu.nf:
                                 self.then_offsets.append([off, 1])
                             else:
                                 self.then_offsets.append([off, 0])
 
-                        elif "CC" in str(instr):
+                        elif "CC" in str(instr.args):
                             if self.jitter.cpu.cf == 0:
                                 self.then_offsets.append([off, 1])
                             else:
                                 self.then_offsets.append([off, 0])
 
-                        elif "LS" in str(instr):
+                        elif "LS" in str(instr.args):
                             if self.jitter.cpu.cf == 1 or self.jitter.cpu.zf == 0:
                                 self.then_offsets.append([off, 1])
                             else:
                                 self.then_offsets.append([off, 0])
 
-                        elif "CS" in str(instr):
+                        elif "CS" in str(instr.args):
                             if self.jitter.cpu.cf == 1:
                                 self.then_offsets.append([off, 1])
                             else:
@@ -441,37 +439,37 @@ class DSEEngine(object):
                     else:
                         # else insts
 
-                        if "EQ" in str(instr):
+                        if "EQ" in str(instr.args):
                             if self.jitter.cpu.zf == 0:
                                 self.else_offsets.append([off, 1])
                             else:
                                 self.else_offsets.append([off, 0])
 
-                        elif "NE" in str(instr):
+                        elif "NE" in str(instr.args):
                             if self.jitter.cpu.zf == 1:
                                 self.else_offsets.append([off, 1])
                             else:
                                 self.else_offsets.append([off, 0])
 
-                        elif "LT" in str(instr):
+                        elif "LT" in str(instr.args):
                             if self.jitter.cpu.of != self.jitter.cpu.nf:
                                 self.else_offsets.append([off, 0])
                             else:
                                 self.else_offsets.append([off, 1])
 
-                        elif "CC" in str(instr):
+                        elif "CC" in str(instr.args):
                             if self.jitter.cpu.cf == 0:
                                 self.else_offsets.append([off, 0])
                             else:
                                 self.else_offsets.append([off, 1])
 
-                        elif "LS" in str(instr):
+                        elif "LS" in str(instr.args):
                             if self.jitter.cpu.cf == 1 or self.jitter.cpu.zf == 0:
                                 self.else_offsets.append([off, 0])
                             else:
                                 self.else_offsets.append([off, 1])
 
-                        elif "CS" in str(instr):
+                        elif "CS" in str(instr.args):
                             if self.jitter.cpu.cf == 1:
                                 self.else_offsets.append([off, 0])
                             else:
