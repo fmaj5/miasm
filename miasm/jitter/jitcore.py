@@ -209,21 +209,15 @@ class JitCore(object):
             instr = cur_block.lines[0]
             if instr.name.startswith("IT"):
 
-                print("it is IT block in jitter")
-
                 assert len(self.then_offsets) == 0
                 assert len(self.else_offsets) == 0
 
                 self.then_offsets.clear()
                 self.else_offsets.clear()
 
-                print(instr)
-
                 newpc = offset + instr.l
 
                 it_hints, it_cond = self.parse_itt(instr)
-                cond_num = cond_dct_inv[it_cond.name]
-                cond_eq = tab_cond[cond_num]
 
                 off = offset
 
@@ -233,7 +227,7 @@ class JitCore(object):
                     off = off + self.mdis.dis_block(off).lines[0].l
 
                     if hint == 0:
-                        # then insts
+                        # then instructions
 
                         if "EQ" in str(instr):
                             if cpu.zf == 1:
@@ -275,7 +269,7 @@ class JitCore(object):
                             raise NotImplementedError("IT cond missing")
 
                     else:
-                        # else insts
+                        # else instructions
 
                         if "EQ" in str(instr):
                             if cpu.zf == 0:
@@ -312,42 +306,27 @@ class JitCore(object):
                                 self.else_offsets.append([off, 0])
                             else:
                                 self.else_offsets.append([off, 1])
-
 
                         else:
                             raise NotImplementedError("IT cond missing")
 
                 return newpc
 
-            for off, ex in self.then_offsets:
-                if off == offset:
+            # offset behind IT instruction
+            if len(self.then_offsets):
+                off, ex = self.then_offsets.pop(0)
+                assert off == offset
 
-                    print("jit: offset {0:x} behind IT instruction".format(offset), end="")
+                # cond unstatify, ignore
+                if ex == 0:
+                    return offset + instr.l
 
-                    of, ex = self.then_offsets.pop(0)
-                    assert of == offset
+            if len(self.else_offsets):
+                off, ex = self.else_offsets.pop(0)
+                assert off == offset
 
-                    # ignore and inc pc
-                    if ex == 0:
-                        print("cond unstatify, ignore")
-                        return offset + instr.l
-                    else:
-                        print("cond statify, jit")
-                        break
-
-            for off, ex in self.else_offsets:
-                if off == offset:
-
-                    print("jit: offset {0:x} behind IT instruction".format(offset), end="")
-                    of, ex = self.else_offsets.pop(0)
-                    assert of == offset
-
-                    if ex == 0:
-                        print("cond unstatify, ignore")
-                        return offset + instr.l
-                    else:
-                        print("cond statify, jit")
-                        break
+                if ex == 0:
+                    return offset + instr.l
 
             cur_block = self.disasm_and_jit_block(offset, cpu.vmmngr)
             if isinstance(cur_block, AsmBlockBad):
