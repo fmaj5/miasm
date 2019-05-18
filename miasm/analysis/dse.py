@@ -372,8 +372,7 @@ class DSEEngine(object):
             instr = asm_block.lines[0]
             if instr.name.startswith("IT"):
 
-                print("it is IT instr in dse")
-                print(instr)
+                # it is IT instr
 
                 assert len(self.then_offsets) == 0
                 assert len(self.else_offsets) == 0
@@ -485,44 +484,28 @@ class DSEEngine(object):
 
         asm_block = self.mdis.dis_block(cur_addr)
         instr = asm_block.lines[0]
-        for off, ex in self.then_offsets:
-            if off == cur_addr:
 
-                print("dse: offset {0:x} behind IT instruction".format(cur_addr), end="")
-                of, ex = self.then_offsets.pop(0)
-                assert of == cur_addr
+        # offset behind IT instruction
+        if len(self.then_offsets):
+            off, ex = self.then_offsets.pop(0)
+            assert off == cur_addr
 
-                # ignore and inc pc
-                if ex == 0:
+            # cond unstatify, ignore
+            if ex == 0:
+                self.update_state({
+                    self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
+                })
+                return True
 
-                    self.update_state({
-                        self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
-                    })
-                    print("cond unstatify, ignore")
-                    return True
+        if len(self.else_offsets):
+            off, ex = self.else_offsets.pop(0)
+            assert off == cur_addr
 
-                else:
-                    print("cond statify, symbolic")
-                    break
-
-        for off, ex in self.else_offsets:
-            if off == cur_addr:
-
-                print("dse: offset {0:x} behind IT instruction".format(cur_addr), end="")
-                of, ex = self.else_offsets.pop(0)
-                assert of == cur_addr
-
-                if ex == 0:
-
-                    self.update_state({
-                        self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
-                    })
-
-                    print("cond unstatify, ignore")
-                    return True
-                else:
-                    print("cond statify, symbolic")
-                    break
+            if ex == 0:
+                self.update_state({
+                    self.ir_arch.pc: ExprInt(self.jitter.pc + instr.l, 32),
+                })
+                return True
 
         # Emulate the current instruction
         self.symb.reset_modified()
