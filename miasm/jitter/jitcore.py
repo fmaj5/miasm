@@ -195,8 +195,18 @@ class JitCore(object):
         if offset not in self.offset_to_jitted_func:
             # Need to JiT the block
 
-            asm_block = self.mdis.dis_block(offset)  # type: AsmBlock
-            instr = asm_block.lines[0]
+            cur_block = self.mdis.dis_block(offset)
+            if isinstance(cur_block, AsmBlockBad):
+                errno = cur_block.errno
+                if errno == AsmBlockBad.ERROR_IO:
+                    cpu.vmmngr.set_exception(EXCEPT_ACCESS_VIOL)
+                elif errno == AsmBlockBad.ERROR_CANNOT_DISASM:
+                    cpu.set_exception(EXCEPT_UNK_MNEMO)
+                else:
+                    raise RuntimeError("Unhandled disasm result %r" % errno)
+                return offset
+
+            instr = cur_block.lines[0]
             if instr.name.startswith("IT"):
 
                 print("it is IT block in jitter")
