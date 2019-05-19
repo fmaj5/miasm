@@ -49,7 +49,7 @@ Here are a few remainings TODO:
 """
 from builtins import range
 from collections import namedtuple
-
+from miasm.core.asmblock import disasmEngine, AsmBlockBad
 from miasm.arch.arm.sem import *
 
 try:
@@ -367,7 +367,9 @@ class DSEEngine(object):
 
             ## Update current state
             asm_block = self.mdis.dis_block(cur_addr)
-
+            if isinstance(asm_block, AsmBlockBad):
+                return False
+            
             # check if IT instrs
             instr = asm_block.lines[0]
             if instr.name.startswith("IT"):
@@ -483,6 +485,9 @@ class DSEEngine(object):
             self.addr_to_cacheblocks[cur_addr] = dict(self.ircfg.blocks)
 
         asm_block = self.mdis.dis_block(cur_addr)
+        if isinstance(asm_block, AsmBlockBad):
+            return False
+
         instr = asm_block.lines[0]
 
         # offset behind IT instruction
