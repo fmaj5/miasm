@@ -729,6 +729,9 @@ reg_tests_armt = [
 
     ("xxxxxxxx    TEQ        R0, R1",
      "90EA010F"),
+
+    ("xxxxxxxx    ADD        R0, SP, 0x714",
+     "0DF21470"),
 ]
 
 
