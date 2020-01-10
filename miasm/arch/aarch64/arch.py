@@ -17,7 +17,7 @@ from miasm.core.asm_ast import AstInt, AstId, AstMem, AstOp
 
 log = logging.getLogger("aarch64dis")
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter("%(levelname)-5s: %(message)s"))
+console_handler.setFormatter(logging.Formatter("[%(levelname)-8s]: %(message)s"))
 log.addHandler(console_handler)
 log.setLevel(logging.DEBUG)
 
@@ -2152,7 +2152,7 @@ aarch64op("ldxp", [bs('1'), sf, bs('001000'), bs('0'), bs('1'), bs('1'), bs('111
 
 # load acquire/store release p.141
 aarch64op("ldar", [bs('1'), sf, bs('001000'), bs('1'), bs('1'), bs('0'), bs('11111'), bs('1'), bs('11111'), rn64_deref_nooff, rt], [rt, rn64_deref_nooff])
-aarch64op("ldarb",[bs('0'), bs('0'), bs('001000'), bs('1'), bs('1'), bs('0'), bs('11111'), bs('1'), bs('11111'), rn64_deref_nooff, rt], [rt, rn64_deref_nooff])
+aarch64op("ldarb",[bs('0'), bs('0'), bs('001000'), bs('1'), bs('1'), bs('0'), bs('11111'), bs('1'), bs('11111'), rn64_deref_nooff, rt32], [rt32, rn64_deref_nooff])
 aarch64op("ldarh",[bs('0'), bs('1'), bs('001000'), bs('0'), bs('1'), bs('0'), bs('11111'), bs('1'), bs('11111'), rn64_deref_nooff, rt], [rt, rn64_deref_nooff])
 aarch64op("ldaxp",[bs('1'), sf, bs('001000'), bs('0'), bs('1'), bs('1'), bs('11111'), bs('1'), bs('11111'), rn64_deref_nooff, rt], [rt, rn64_deref_nooff])
 aarch64op("ldaxr",[bs('1'), sf, bs('001000'), bs('0'), bs('1'), bs('0'), bs('11111'), bs('1'), bs('11111'), rn64_deref_nooff, rt], [rt, rn64_deref_nooff])

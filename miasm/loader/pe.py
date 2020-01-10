@@ -15,7 +15,7 @@ from miasm.loader.strpatchwork import StrPatchwork
 
 log = logging.getLogger("pepy")
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter("%(levelname)-5s: %(message)s"))
+console_handler.setFormatter(logging.Formatter("[%(levelname)-8s]: %(message)s"))
 log.addHandler(console_handler)
 log.setLevel(logging.WARN)
 
@@ -887,7 +887,7 @@ class DirDelay(CStruct):
                                                          addr,
                                                          Rva)
             else:
-                entry.originalfirstthunks
+                entry.originalfirstthunks = None
 
             if entry.firstthunk:
                 entry.firstthunks = struct_array(self, raw,
@@ -1600,6 +1600,31 @@ class Symb(CStruct):
                ("res1", "u32"),
                ("res2", "u32"),
                ("res3", "u16")]
+
+
+class DirTls(CStruct):
+    _fields = [
+        ("data_start", "ptr"),
+        ("data_end", "ptr"),
+        ("addr_index", "ptr"),
+        ("callbacks", "ptr"),
+        ("size_of_zero", "u32"),
+        ("characteristics", "u32")
+    ]
+
+    def build_content(self, raw):
+        dirtls = self.parent_head.NThdr.optentries[DIRECTORY_ENTRY_TLS]
+        of1 = dirtls.rva
+        if of1 is None:  # No Tls
+            return
+        raw[self.parent_head.rva2off(of1)] = bytes(self)
+
+    def set_rva(self, rva, size=None):
+        self.parent_head.NThdr.optentries[DIRECTORY_ENTRY_TLS].rva = rva
+        if not size:
+            self.parent_head.NThdr.optentries[DIRECTORY_ENTRY_TLS].size = len(self)
+        else:
+            self.parent_head.NThdr.optentries[DIRECTORY_ENTRY_TLS].size = size
 
 
 DIRECTORY_ENTRY_EXPORT = 0

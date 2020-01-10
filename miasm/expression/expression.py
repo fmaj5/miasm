@@ -279,6 +279,11 @@ class Expr(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __lt__(self, other):
+        weight1 = EXPR_ORDER_DICT[self.__class__]
+        weight2 = EXPR_ORDER_DICT[other.__class__]
+        return weight1 < weight2
+
     def __add__(self, other):
         return ExprOp('+', self, other)
 
@@ -649,7 +654,10 @@ class ExprLoc(Expr):
         return str(self._loc_key)
 
     def get_r(self, mem_read=False, cst_read=False):
-        return set()
+        if cst_read:
+            return set([self])
+        else:
+            return set()
 
     def get_w(self):
         return set()

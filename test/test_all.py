@@ -60,6 +60,7 @@ testset += RegressionTest(["aarch64/arch.py"], base_dir="arch")
 testset += RegressionTest(["sh4/arch.py"], base_dir="arch")
 testset += RegressionTest(["msp430/arch.py"], base_dir="arch")
 testset += RegressionTest(["mips32/arch.py"], base_dir="arch")
+testset += RegressionTest(["ppc32/arch.py"], base_dir="arch")
 
 
 
@@ -105,6 +106,7 @@ for script in ["x86/sem.py",
                "aarch64/unit/mn_ubfm.py",
                "msp430/sem.py",
                "mips32/unit/mn_bcc.py",
+               "ppc32/sem.py",
                ]:
     for jitter in ArchUnitTest.jitter_engines:
         if jitter in blacklist.get(script, []):
@@ -457,10 +459,12 @@ for i, test_args in enumerate(test_args):
 for script in ["jitload.py",
                "vm_mngr.py",
                "jit_options.py",
+               "jitcore.py",
                "test_post_instr.py",
                "bad_block.py",
                "jmp_out_mem.py",
-               "jit_armt_itblock.py",
+               "mem_breakpoint.py",
+               "jit_armt_itblock.py"
                ]:
     for engine in ArchUnitTest.jitter_engines:
         testset += RegressionTest([script, engine], base_dir="jitter",
@@ -920,7 +924,7 @@ By default, all tag are considered." % ", ".join(list(TAGS)), default="")
     # Handle Z3 dependency
     try:
         import z3
-    except ImportError:
+    except:
         print("%(red)s[Z3]%(end)s " % cosmetics.colors + \
             "Z3 and its python binding are necessary for TranslatorZ3.")
         if TAGS["z3"] not in exclude_tags:

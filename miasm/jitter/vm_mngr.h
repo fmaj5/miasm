@@ -35,10 +35,8 @@
 
 #ifdef __APPLE__
 #define __BYTE_ORDER __BYTE_ORDER__
-#ifndef __BIG_ENDIAN
-#define __BIG_ENDIAN '>'
-#define __LITTLE_ENDIAN '<'
-#endif
+#define __BIG_ENDIAN BIG_ENDIAN
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
 #define __BYTE_ORDER _BYTE_ORDER
 #define __BIG_ENDIAN _BIG_ENDIAN
@@ -47,6 +45,10 @@
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #define __BIG_ENDIAN '>'
 #define __LITTLE_ENDIAN '<'
+#elif defined(__ANDROID__)
+#define __BYTE_ORDER __BYTE_ORDER__
+#define __LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
+#define __BIG_ENDIAN __ORDER_BIG_ENDIAN__
 #endif
 
 
@@ -82,7 +84,6 @@ LIST_HEAD(memory_breakpoint_info_head, memory_breakpoint_info);
 
 #define MAX_MEMORY_PAGE_POOL_TAB 0x100000
 #define MEMORY_PAGE_POOL_MASK_BIT 12
-#define PAGE_SIZE (1<<MEMORY_PAGE_POOL_MASK_BIT)
 #define VM_BIG_ENDIAN 1
 #define VM_LITTLE_ENDIAN 2
 
@@ -183,6 +184,7 @@ struct memory_breakpoint_info {
 #define EXCEPT_PRIV_INSN ((1<<17) | EXCEPT_DO_NOT_UPDATE_PC)
 #define EXCEPT_ILLEGAL_INSN ((1<<18) | EXCEPT_DO_NOT_UPDATE_PC)
 #define EXCEPT_UNK_MNEMO ((1<<19) | EXCEPT_DO_NOT_UPDATE_PC)
+#define EXCEPT_INT_1 ((1<<20) | EXCEPT_DO_NOT_UPDATE_PC)
 
 
 int is_mem_mapped(vm_mngr_t* vm_mngr, uint64_t ad);

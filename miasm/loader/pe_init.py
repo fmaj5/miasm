@@ -16,7 +16,7 @@ from miasm.loader.strpatchwork import StrPatchwork
 
 log = logging.getLogger("peparse")
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter("%(levelname)-5s: %(message)s"))
+console_handler.setFormatter(logging.Formatter("[%(levelname)-8s]: %(message)s"))
 log.addHandler(console_handler)
 log.setLevel(logging.WARN)
 
@@ -161,7 +161,7 @@ def compute_crc(raw, olds):
     out = 0
     data = raw[:]
     if len(raw) % 2:
-        end = struct.unpack('B', data[-1])[0]
+        end = struct.unpack('B', data[-1:])[0]
         data = data[:-1]
     if (len(raw) & ~0x1) % 4:
         out += struct.unpack('H', data[:2])[0]
@@ -220,6 +220,7 @@ class PE(object):
             self.DirDelay = pe.DirDelay(self)
             self.DirReloc = pe.DirReloc(self)
             self.DirRes = pe.DirRes(self)
+            self.DirTls = pe.DirTls(self)
 
             self.Doshdr.magic = 0x5a4d
             self.Doshdr.lfanew = 0xe0
@@ -414,6 +415,17 @@ class PE(object):
                 except pe.InvalidOffset:
                     log.warning('cannot parse DirRes, skipping')
 
+        if len(self.NThdr.optentries) > pe.DIRECTORY_ENTRY_TLS:
+            self.DirTls = pe.DirTls(self)
+            try:
+                self.DirTls = pe.DirTls.unpack(
+                    self.img_rva,
+                    self.NThdr.optentries[pe.DIRECTORY_ENTRY_TLS].rva,
+                    self
+                )
+            except pe.InvalidOffset:
+                log.warning('cannot parse DirTls, skipping')
+
     def resize(self, old, new):
         pass
 
@@ -476,18 +488,30 @@ class PE(object):
             return
         return off - section.offset + section.addr
 
-    def virt2rva(self, virt):
-        if virt is None:
-            return
-        return virt - self.NThdr.ImageBase
+    def virt2rva(self, addr):
+        """
+        Return rva of virtual address @addr; None if addr is below ImageBase
+        """
+        if addr is None:
+            return None
+        rva = addr - self.NThdr.ImageBase
+        if rva < 0:
+            return None
+        return rva
 
     def rva2virt(self, rva):
         if rva is None:
             return
         return rva + self.NThdr.ImageBase
 
-    def virt2off(self, virt):
-        return self.rva2off(self.virt2rva(virt))
+    def virt2off(self, addr):
+        """
+        Return offset of virtual address @addr
+        """
+        rva = self.virt2rva(addr)
+        if rva is None:
+            return None
+        return self.rva2off(rva)
 
     def off2virt(self, off):
         return self.rva2virt(self.off2rva(off))
@@ -555,6 +579,7 @@ class PE(object):
         self.DirDelay.build_content(content)
         self.DirReloc.build_content(content)
         self.DirRes.build_content(content)
+        self.DirTls.build_content(content)
 
         if (self.Doshdr.lfanew + len(self.NTsig) + len(self.Coffhdr)) % 4:
             log.warn("non aligned coffhdr, bad crc calculation")

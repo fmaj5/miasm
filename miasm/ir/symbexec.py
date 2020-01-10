@@ -12,7 +12,7 @@ from miasm.ir.ir import AssignBlock
 
 log = logging.getLogger("symbexec")
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter("%(levelname)-5s: %(message)s"))
+console_handler.setFormatter(logging.Formatter("[%(levelname)-8s]: %(message)s"))
 log.addHandler(console_handler)
 log.setLevel(logging.INFO)
 
@@ -239,7 +239,7 @@ class MemArray(MutableMapping):
             data = ExprMem(ptr, 8)
             parts.append((0, 1, data))
 
-        # Group similar datas
+        # Group similar data
         # XXX TODO: only little endian here
         index = 0
         while index + 1 < len(parts):
@@ -281,7 +281,7 @@ class MemArray(MutableMapping):
 
             index += 1
 
-        # Slice datas
+        # Slice data
         read_mem = []
         for off, bytesize, data in parts:
             if data.size // 8 != bytesize:

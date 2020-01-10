@@ -13,7 +13,7 @@ from miasm.jitter.codegen import CGen
 from miasm.jitter.jitcore_cc_base import JitCore_Cc_Base
 
 hnd = logging.StreamHandler()
-hnd.setFormatter(logging.Formatter("[%(levelname)s]: %(message)s"))
+hnd.setFormatter(logging.Formatter("[%(levelname)-8s]: %(message)s"))
 log = logging.getLogger('jitload.py')
 log.addHandler(hnd)
 log.setLevel(logging.CRITICAL)
@@ -373,7 +373,7 @@ class Jitter(object):
         # Exceptions should never be activated before run
         assert(self.get_exception() == 0)
 
-        # Run the bloc at PC
+        # Run the block at PC
         self.pc = self.run_at(self.pc)
 
         # Check exceptions (raised by the execution of the block)
@@ -414,6 +414,16 @@ class Jitter(object):
 
         return None
 
+
+    def run(self, addr):
+        """
+        Launch emulation
+        @addr: (int) start address
+        """
+        self.init_run(addr)
+        return self.continue_run()
+
+
     def init_stack(self):
         self.vm.add_memory_page(
             self.stack_base,
@@ -430,8 +440,8 @@ class Jitter(object):
         return self.cpu.get_exception() | self.vm.get_exception()
 
     # commun functions
-    def get_str_ansi(self, addr, max_char=None):
-        """Get ansi str from vm.
+    def get_c_str(self, addr, max_char=None):
+        """Get C str from vm.
         @addr: address in memory
         @max_char: maximum len"""
         l = 0
@@ -440,31 +450,22 @@ class Jitter(object):
                self.vm.get_mem(tmp, 1) != b"\x00"):
             tmp += 1
             l += 1
-        return self.vm.get_mem(addr, l)
+        value = self.vm.get_mem(addr, l)
+        value = force_str(value)
+        return value
+
+    def set_c_str(self, addr, value):
+        """Set C str str from vm.
+        @addr: address in memory
+        @value: str"""
+        value = force_bytes(value)
+        self.vm.set_mem(addr, value + b'\x00')
+
+    def get_str_ansi(self, addr, max_char=None):
+        raise NotImplementedError("Deprecated: use os_dep.win_api_x86_32.get_win_str_a")
 
     def get_str_unic(self, addr, max_char=None):
-        """Get unicode str from vm.
-        @addr: address in memory
-        @max_char: maximum len"""
-        l = 0
-        tmp = addr
-        while ((max_char is None or l < max_char) and
-               self.vm.get_mem(tmp, 2) != b"\x00\x00"):
-            tmp += 2
-            l += 2
-        s = self.vm.get_mem(addr, l)
-        s = s.decode("utf-16le")
-        return s
-
-    def set_str_ansi(self, addr, s):
-        """Set an ansi string in memory"""
-        s = s + b"\x00"
-        self.vm.set_mem(addr, s)
-
-    def set_str_unic(self, addr, s):
-        """Set an unicode string in memory"""
-        s = b"\x00".join(list(s)) + b'\x00' * 3
-        self.vm.set_mem(addr, s)
+        raise NotImplementedError("Deprecated: use os_dep.win_api_x86_32.get_win_str_a")
 
     @staticmethod
     def handle_lib(jitter):
@@ -501,7 +502,6 @@ class Jitter(object):
         self.libs = libs
         out = {}
         for name, func in viewitems(user_globals):
-            name = force_bytes(name)
             out[name] = func
         self.user_globals = out
 

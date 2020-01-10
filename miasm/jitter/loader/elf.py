@@ -9,13 +9,14 @@ import miasm.loader.elf as elf_csts
 
 from miasm.jitter.csts import *
 from miasm.jitter.loader.utils import canon_libname_libfunc, libimp
+from miasm.core.utils import force_str
 from miasm.core.interval import interval
 
 import logging
 
 log = logging.getLogger('loader_elf')
 hnd = logging.StreamHandler()
-hnd.setFormatter(logging.Formatter("[%(levelname)s]: %(message)s"))
+hnd.setFormatter(logging.Formatter("[%(levelname)-8s]: %(message)s"))
 log.addHandler(hnd)
 log.setLevel(logging.CRITICAL)
 
@@ -26,6 +27,7 @@ def get_import_address_elf(e):
         if not hasattr(sh, 'rel'):
             continue
         for k, v in viewitems(sh.rel):
+            k = force_str(k)
             import2addr[('xxx', k)].add(v.offset)
     return import2addr
 
