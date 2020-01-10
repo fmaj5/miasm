@@ -256,7 +256,7 @@ class AssignBlock(object):
 
     def __str__(self):
         out = []
-        for dst, src in (viewitems(self._assigns)):
+        for dst, src in sorted(viewitems(self._assigns)):
             out.append("%s = %s" % (dst, src))
         return "\n".join(out)
 
@@ -365,8 +365,7 @@ class IRBlock(object):
             for dst, src in viewitems(assignblk):
                 if dst.is_id("IRDst"):
                     if final_dst is not None:
-                        # raise ValueError('Multiple destinations!')
-                        break
+                        raise ValueError('Multiple destinations!')
                     final_dst = src
                     final_linenb = linenb
         self._dst = final_dst
@@ -388,8 +387,7 @@ class IRBlock(object):
             new_assignblk = {}
             for dst, src in viewitems(assignblk):
                 if dst.is_id("IRDst"):
-                    # assert dst_found is False
-                    break
+                    assert dst_found is False
                     dst_found = True
                     new_assignblk[dst] = value
                 else:
