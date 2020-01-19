@@ -281,7 +281,6 @@ def eors(ir, instr, a, b, c=None):
         e.append(ExprAssign(ir.IRDst, r))
     return e, []
 
-
 def rsb(ir, instr, a, b, c=None):
     e = []
     if c is None:
@@ -758,6 +757,16 @@ def blx(ir, instr, a):
     e.append(ExprAssign(LR, l))
     return e, []
 
+def vmov(ir, instr, a, b, c=None):
+    e = [ExprAssign(a, b)]
+    dst = get_dst(a)
+    if dst is not None:
+        e.append(ExprAssign(ir.IRDst, b))
+    return e, []
+
+def vcvt(ir, instr, a, a2):
+    e = []
+    return e, []
 
 def st_ld_r(ir, instr, a, a2, b, store=False, size=32, s_ext=False, z_ext=False):
     e = []
@@ -1675,6 +1684,9 @@ mnemo_condm1 = {'adds': add,
                 'ldrb': ldrb,
                 'ldsb': ldrsb,
                 'strb': strb,
+
+                'vmov': vmov,
+                'vcvt': vcvt
                 }
 
 mnemo_condm2 = {'ldmia': ldmia,

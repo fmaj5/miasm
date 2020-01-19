@@ -1479,10 +1479,10 @@ class disasmEngine(object):
             error = None
             try:
                 instr = self.arch.dis(self.bin_stream, self.attrib, offset)
-            except Disasm_Exception as e:
-                log_asmblock.warning(e)
-                instr = None
-                error = AsmBlockBad.ERROR_CANNOT_DISASM
+            # except Disasm_Exception as e:
+            #     log_asmblock.warning(e)
+            #     instr = None
+            #     error = AsmBlockBad.ERROR_CANNOT_DISASM
             except IOError as e:
                 log_asmblock.warning(e)
                 instr = None

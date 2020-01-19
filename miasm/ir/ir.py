@@ -28,7 +28,13 @@ from miasm.expression.expression_helper import get_missing_interval
 from miasm.core.asmblock import AsmBlock, AsmConstraint
 from miasm.core.graph import DiGraph
 from functools import reduce
+import logging
 
+log_ir = logging.getLogger("asmblock")
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter("[%(levelname)-8s]: %(message)s"))
+log_ir.addHandler(console_handler)
+log_ir.setLevel(logging.WARNING)
 
 def _expr_loc_to_symb(expr, loc_db):
     if not expr.is_loc():
@@ -365,7 +371,9 @@ class IRBlock(object):
             for dst, src in viewitems(assignblk):
                 if dst.is_id("IRDst"):
                     if final_dst is not None:
-                        raise ValueError('Multiple destinations!')
+                        # raise ValueError('Multiple destinations!')
+                        log_ir.warn("Multiple destinations!")
+                        break
                     final_dst = src
                     final_linenb = linenb
         self._dst = final_dst
