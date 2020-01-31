@@ -13,6 +13,8 @@ from miasm.core.interval import interval
 from miasm.expression.expression_helper import possible_values
 from miasm.analysis.ssa import get_phi_sources_parent_block, \
     irblock_has_phi
+from concurrent import futures
+import threading
 
 
 class ReachingDefinitions(dict):
@@ -140,6 +142,8 @@ class DiGraphDefUse(DiGraph):
         self._dot_offset = None
         self._blocks = reaching_defs.ircfg.blocks
 
+        self.lock = threading.RLock()
+
         super(DiGraphDefUse, self).__init__(*args, **kwargs)
         self._compute_def_use(reaching_defs,
                               deref_mem=deref_mem)
@@ -152,12 +156,24 @@ class DiGraphDefUse(DiGraph):
         """
         return self._edge_attr[(src, dst)]
 
+    def _compute_wrap(self, args):
+        with self.lock:
+            self._progress += 1
+            print("%d" % self._progress, end="\r")
+        block, reaching_defs, deref_mem = args
+        self._compute_def_use_block(block, reaching_defs, deref_mem)
+
     def _compute_def_use(self, reaching_defs,
                          deref_mem=False):
+
+        args = []
         for block in viewvalues(self._blocks):
-            self._compute_def_use_block(block,
-                                        reaching_defs,
-                                        deref_mem=deref_mem)
+            args.append((block, reaching_defs, deref_mem))
+
+        self._progress = 0
+        with futures.ThreadPoolExecutor() as pool:
+            pool.map(self._compute_wrap, args)
+
 
     def _compute_def_use_block(self, block, reaching_defs, deref_mem=False):
         for index, assignblk in enumerate(block):
