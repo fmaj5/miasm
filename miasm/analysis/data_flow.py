@@ -63,7 +63,24 @@ class ReachingDefinitions(dict):
 
     def get_uses(self, block_lbl, assignblk_index):
         """
-        Search which blocks use the register at (block_lbl, assignblk_index)
+        Search which son block use the register at (block_lbl, assignblk_index)
+        Example:
+        IR block:
+        lbl0:
+            0 A = 1
+              B = 3
+            1 B = 2
+            2 A = A + B + 4
+        lbl1:
+            0 C = A
+            1 D = B
+        lbl2:
+            0 D = C
+            1 E = D
+
+        if block_lbl = lbl0 and assignblk_index = 1, thus, we want track B
+        Result: 
+            [(lbl0, 2), (lbl1, 0), (lbl2, 0), (lbl2, 1)] 
         """
         result = []
         all_defused = []
