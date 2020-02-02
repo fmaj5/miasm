@@ -49,9 +49,21 @@ class ReachingDefinitions(dict):
         self.ircfg = ircfg
         self.compute()
 
+
+    def get_expr_define(self, exprid):
+        """Return all blocks that define Expr"""
+        result = []
+        for irblk in self.ircfg.blocks:  # type: LocKey
+            for lexpr, r in viewitems(self.get_definitions(irblk, len(self.ircfg.get_block(irblk)))):
+                for defs in r:
+                    if lexpr == exprid and irblk == defs[0]:
+                        result.append(irblk)
+
+        return result
+
     def get_uses(self, block_lbl, assignblk_index):
         """
-        Search which blocks use the register at block_lbl and assignblk_index
+        Search which blocks use the register at (block_lbl, assignblk_index)
         """
         result = []
         all_defused = []
