@@ -47,6 +47,35 @@ class ReachingDefinitions(dict):
         self.ircfg = ircfg
         self.compute()
 
+    def get_uses(self, block_lbl, assignblk_index):
+        """
+        Search which blocks use the register at block_lbl and assignblk_index
+        """
+        result = []
+        all_defused = []
+        for bindex, block in enumerate(self.ircfg.blocks): 
+            for index, assignblk in enumerate(self.ircfg.get_block(block)):
+                assignblk_reaching_defs = self.get_definitions(block, index)
+                for lval, expr in viewitems(assignblk):
+                    read_vars = expr.get_r(mem_read=False)
+                    for read_var in read_vars:
+                        for reach in assignblk_reaching_defs.get(read_var, set()):
+                            all_defused.append(((block, index), (reach[0], reach[1])))
+
+        cont_search = True
+        while cont_search:
+            cont_search = False
+            for blk, uses in all_defused:
+                if uses[0] == block_lbl and uses[1] == assignblk_index:
+                    block_lbl = blk[0]
+                    assignblk_index = blk[1]
+                    result.append((block_lbl, assignblk_index))
+                    cont_search = True
+
+        return result
+        
+
+
     def get_definitions(self, block_lbl, assignblk_index):
         """Returns the dict { lvalue: set((def_block_lbl, def_index)) }
         associated with self.ircfg.@block.assignblks[@assignblk_index]
