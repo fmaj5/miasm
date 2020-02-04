@@ -3409,7 +3409,7 @@ armtop("vmov", [bs('11101100010'), bs('0'), rt2_nopc, rt_nopc, bs('101100'), vcv
 armtop("vcvt", [bs('111011101'), vcvt_d, bs('111'), vcvt_opc2, vd, bs('101'), vcvt_sz, vcvt_op, bs('1'), vcvt_m, bs('0'), vn], [vd, vn])
 # armtop("vcvt", [bs('111011101'), vcvt_d, bs('111'), vcvt_opc2, vd, bs('101'), vcvt_sz, vcvt_op, bs('1'), vcvt_m, bs('0'), vn], [vd, vn])
 
-armtop("ldr",  [bs('11111000'), updown, bs('101'), rn_deref, rt, off12], [rt, rn_deref])
+armtop("ldr",  [bs('111110001101'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
 armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
 armtop("ldrb", [bs('111110000001'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
