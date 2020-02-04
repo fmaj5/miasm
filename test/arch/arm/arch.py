@@ -703,35 +703,7 @@ reg_tests_armt = [
     ("xxxxxxxx    CMP        R5, R0 LSR 0x8",
      "B5EB102F"),
 
-    ("xxxxxxxx    LDMIA      R0, {R2, R3, R6, R7}",
-     "90E8CC00"),
 
-    ("xxxxxxxx    DMB        SY",
-     "BFF35F8F"),
-
-    ("xxxxxxxx    STRB       R3, [R4, R8]",
-     "04F80830"),
-
-    ("xxxxxxxx    STRB       R2, [R3, R9]",
-     "03F80920"),
-
-    ("xxxxxxxx    LDREX      R3, [R1]",
-     "51E8003F"),
-
-    ("xxxxxxxx    LDREX      R2, [R12]",
-     "5CE8002F"),
-
-    ("xxxxxxxx    STREX      LR, R1, [R3]",
-     "43E8001E"),
-
-    ("xxxxxxxx    STREX      R0, LR, [R2]",
-     "42E800E0"),
-
-    ("xxxxxxxx    TEQ        R0, R1",
-     "90EA010F"),
-
-    ("xxxxxxxx    ADD        R0, SP, 0x714",
-     "0DF21470"),
 ]
 print("#" * 40, 'armthumb', '#' * 40)
 
