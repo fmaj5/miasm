@@ -33,6 +33,16 @@ regs_str[14] = 'LR'
 regs_str[15] = 'PC'
 regs_expr = [ExprId(x, 32) for x in regs_str]
 
+# Single-Precision
+spregs_str = ['S%d' % r for r in range(0x10)]
+spregs_expr = [ExprId(x, 32) for x in spregs_str]
+spregs = reg_info(spregs_str, spregs_expr)
+
+# Double-Precision
+dpregs_str = ['D%d' % r for r in range(0x10)]
+dpregs_expr = [ExprId(x, 32) for x in dpregs_str]
+dpregs = reg_info(dpregs_str, dpregs_expr)
+
 gpregs = reg_info(regs_str, regs_expr)
 
 gpregs_pc = reg_info(regs_str[-1:], regs_expr[-1:])
@@ -1814,6 +1824,33 @@ class arm_rm_rot5_asr(arm_rm_rot5_lsl):
         return True
 
 
+class arm_dpregs(reg_noarg):
+    reg_info = dpregs
+    parser = reg_info.parser
+
+
+    def decode(self, v):
+        ret = super(arm_dpregs, self).decode(v)
+        if ret is False:
+            return False
+        if self.expr == reg_dum:
+            return False
+        return True
+
+class arm_spregs(reg_noarg):
+    reg_info = spregs
+    parser = reg_info.parser
+
+
+    def decode(self, v):
+        ret = super(arm_spregs, self).decode(v)
+        if ret is False:
+            return False
+        if self.expr == reg_dum:
+            return False
+        return True
+
+
 class arm_gpreg_nopc(reg_noarg):
     reg_info = gpregs_nopc
     parser = reg_info.parser
@@ -1855,6 +1892,7 @@ rd_nopc = bs(l=4, cls=(arm_gpreg_nopc, arm_arg), fname="rd")
 rn_nopc = bs(l=4, cls=(arm_gpreg_nopc, arm_arg), fname="rn")
 ra_nopc = bs(l=4, cls=(arm_gpreg_nopc, arm_arg), fname="ra")
 rt_nopc = bs(l=4, cls=(arm_gpreg_nopc, arm_arg), fname="rt")
+rt2_nopc = bs(l=4, cls=(arm_gpreg_nopc, arm_arg), fname="rt")
 
 rn_nosp = bs(l=4, cls=(arm_gpreg_nosp, arm_arg), fname="rn")
 
@@ -3353,8 +3391,25 @@ armtop("strh", [bs('111110000010'), rn_noarg, rt, bs('1'), ppi, updown, wback_no
 armtop("strd", [bs('1110100'), ppi, updown, bs('1'), wback_no_t, bs('0'), rn_nopc_noarg, rt, rt2, deref_immpuw00], [rt, rt2, deref_immpuw00])
 armtop("ldrd", [bs('1110100'), ppi, updown, bs('1'), wback_no_t, bs('1'), rn_nopc_noarg, rt, rt2, deref_immpuw00], [rt, rt2, deref_immpuw00])
 
+toarm = bs(l=1, fname="toarm")
+vn = bs(l=4, cls=(arm_spregs, arm_arg))
+vmov_n = bs(l=1)
+vmov_op = bs(l=1)
+vd = bs(l=4, cls=(arm_dpregs, arm_arg))
+vcvt_d = bs(l=1)
+vcvt_m = bs(l=1)
+vcvt_op = bs(l=1)
+vcvt_sz = bs(l=1)
+vcvt_opc2 = bs(l=3)
+armtop("vmov", [bs('11101110000'), bs('1'), vn, rt_nopc, bs('1010'), vmov_n, bs('0010000')], [rt_nopc, vn])
+armtop("vmov", [bs('11101110000'), bs('0'), vn, rt_nopc, bs('1010'), vmov_n, bs('0010000')], [vn, rt_nopc])
+armtop("vmov", [bs('11101100010'), bs('1'), rt2_nopc, rt_nopc, bs('101100'), vcvt_m, bs('1'), vd], [rt_nopc, rt2_nopc, vd])
+armtop("vmov", [bs('11101100010'), bs('0'), rt2_nopc, rt_nopc, bs('101100'), vcvt_m, bs('1'), vd], [vd, rt_nopc, rt2_nopc])
 
-armtop("ldr",  [bs('111110001101'), rn_deref, rt, off12], [rt, rn_deref])
+armtop("vcvt", [bs('111011101'), vcvt_d, bs('111'), vcvt_opc2, vd, bs('101'), vcvt_sz, vcvt_op, bs('1'), vcvt_m, bs('0'), vn], [vd, vn])
+# armtop("vcvt", [bs('111011101'), vcvt_d, bs('111'), vcvt_opc2, vd, bs('101'), vcvt_sz, vcvt_op, bs('1'), vcvt_m, bs('0'), vn], [vd, vn])
+
+armtop("ldr",  [bs('11111000'), updown, bs('101'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
 armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
 armtop("ldrb", [bs('111110000001'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
