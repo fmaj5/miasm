@@ -2067,11 +2067,14 @@ class arm_off7(arm_imm):
         return v >> 2
 
 class arm_deref_reg_imm(arm_arg):
+    reg_info = gpregs
     parser = deref_reg_imm
 
     def decode(self, v):
         v = v & self.lmask
-        rbase = regs_expr[v]
+        if regs_expr[v] not in self.reg_info.expr:
+            return False
+        rbase = self.reg_info.expr[v]
         e = ExprOp('preinc', rbase, self.parent.off.expr)
         self.expr = ExprMem(e, 32)
         return True
@@ -2101,6 +2104,9 @@ class arm_deref_reg_imm(arm_arg):
 
 class arm_derefl(arm_deref_reg_imm):
     parser = deref_low
+
+class arm_nopc_deref(arm_deref_reg_imm):
+    reg_info = gpregs_nopc
 
 
 class arm_offbw(imm_noarg):
@@ -3469,12 +3475,13 @@ class armt_pc_deref(arm_arg):
 
 
 pc_deref_u = bs("1111", l=4, cls=(armt_pc_deref,))
+rn_nopc_deref = bs(l=4, cls=(arm_nopc_deref,), fname="rt")
 
 # doc: ARM DDI 0406C.d A8-411
 armtop("ldr",  [bs('11111000'), updown, bs('101'), pc_deref_u, rt, off12], [rt, pc_deref_u])
-armtop("ldr",  [bs('111110001101'), rn_deref, rt, off12], [rt, rn_deref])
-armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
-armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
+armtop("ldr",  [bs('111110001101'), rn_nopc_deref, rt, off12], [rt, rn_nopc_deref])
+armtop("ldr",  [bs('111110000101'), rn_nopc_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
+armtop("ldr",  [bs('111110000101'), rn_nopc_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
 armtop("ldrb", [bs('111110000001'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
 armtop("ldrb", [bs('111110000001'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
 armtop("ldrb", [bs('111110001001'), rn_deref, rt_nopc, off12], [rt_nopc, rn_deref])
