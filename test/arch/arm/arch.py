@@ -604,7 +604,8 @@ reg_tests_armt = [
     ("xxxxxxxx    STRH       R3, [R0], 0x2",
      "20F8023B"),
 
-
+    ("xxxxxxxx    LDR        R1, [PC, 0xFFFFF970]",
+     "5FF89016"),
     ("xxxxxxxx    LDR        R3, [R0, 0xDC]",
      "D0F8DC30"),
     ("xxxxxxxx    LDR        R4, [SP], 0x4",
@@ -738,6 +739,7 @@ reg_tests_armt = [
     
     ("xxxxxxxx    VMOV       R2, R3, D0",
      "53EC102B")
+
 ]
 
 

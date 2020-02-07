@@ -822,6 +822,9 @@ class arm_arg(m_arg):
 class arm_reg(reg_noarg, arm_arg):
     pass
 
+class arm_gpreg_nopc_noarg(reg_noarg):
+    reg_info = gpregs_nopc
+    parser = reg_info.parser
 
 class arm_gpreg_noarg(reg_noarg):
     reg_info = gpregs
@@ -1400,6 +1403,7 @@ op2 = bs(l=12, cls=(arm_op2,))
 lnk = bs_lnk(l=1, fname='lnk', mn_mod=['', 'L'])
 offs = bs(l=24, cls=(arm_offs,), fname="offs")
 
+rn_nopc_noarg = bs(l=4, cls=(arm_gpreg_nopc_noarg,), fname="rn")
 rn_noarg = bs(l=4, cls=(arm_gpreg_noarg,), fname="rn")
 rm_noarg = bs(l=4, cls=(arm_gpreg_noarg,), fname="rm", order = -1)
 
@@ -3419,6 +3423,55 @@ armtop("vmov", [bs('11101100010'), bs('0'), rt2_nopc, rt_nopc, bs('101100'), vm1
 # armtop("vcvt", [bs('111011101'), vcvt_d, bs('111'), vcvt_opc2, vd, bs('101'), vcvt_sz, vcvt_op, bs('1'), vcvt_m, bs('0'), vn], [vd, vn])
 # armtop("vcvt", [bs('111011101'), vcvt_d, bs('111'), vcvt_opc2, vd, bs('101'), vcvt_sz, vcvt_op, bs('1'), vcvt_m, bs('0'), vn], [vd, vn])
 
+class armt_pc_deref(arm_arg):
+    parser = deref_pc
+
+    def decode(self, v):
+        v = v & self.lmask
+        rbase = regs_expr[v]
+        e = None
+        if self.parent.updown.value == 1:
+            e = ExprOp('preinc', rbase, self.parent.off.expr)
+        else:
+            e = ExprOp('preinc', rbase, -self.parent.off.expr)
+        self.expr = ExprMem(e, 32)
+        return True
+
+    def encode(self):
+        self.parent.off.expr = None
+        e = self.expr
+        if not isinstance(e, ExprMem):
+            return False
+        e = e.ptr
+        if not (isinstance(e, ExprOp) and e.op == 'preinc'):
+            log.debug('cannot encode %r', e)
+            return False
+        off = e.args[1]
+
+        if not isinstance(off, ExprInt):
+            log.debug('cannot encode off %r', off)
+            return False
+        
+        v = int(off)
+
+        if v < 0 or v & (1 << 31):
+            self.parent.updown.value = 0
+            v = (-v) & 0xFFFFFFFF
+        else:
+            self.parent.updown.value = 1
+
+        self.parent.off.expr = ExprInt(v, 32)
+        self.value = gpregs.expr.index(e.args[0])
+        if self.value >= 1 << self.l:
+            log.debug('cannot encode reg %r', off)
+            return False
+        return True
+
+
+pc_deref_u = bs("1111", l=4, cls=(armt_pc_deref,))
+
+# doc: ARM DDI 0406C.d A8-411
+armtop("ldr",  [bs('11111000'), updown, bs('101'), pc_deref_u, rt, off12], [rt, pc_deref_u])
 armtop("ldr",  [bs('111110001101'), rn_deref, rt, off12], [rt, rn_deref])
 armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('1'), ppi, updown, wback_no_t, deref_immpuw], [rt, deref_immpuw])
 armtop("ldr",  [bs('111110000101'), rn_noarg, rt, bs('000000'), imm2_noarg, rm_deref_reg], [rt, rm_deref_reg])
