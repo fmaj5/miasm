@@ -3440,6 +3440,8 @@ dn_1_4 = bs(l=4, cls=(arm_dpregs_1_4, arm_arg))
 dn_1_x = bs(l=1, fname="dpregs_1_x", order=-1)
 dm_4_1 = bs(l=4, cls=(arm_dpregs_4_1, arm_arg))
 dm_x_1 = bs(l=1, fname="dpregs_x_1", order=-1)
+round_zero = bs('1', l=1, fname="round_zero")
+vunsigned = bs(l=1, fname="unsigned")
 
 # DDI0406C.d
 # A8.8.344
@@ -3451,14 +3453,12 @@ armtop("vmov", [bs('11101100010'), bs('1'), rt2_nopc, rt_nopc, bs('101100'), dn_
 armtop("vmov", [bs('11101100010'), bs('0'), rt2_nopc, rt_nopc, bs('101100'), dn_1_x, bs('1'), dn_1_4], [dn_1_4, rt_nopc, rt2_nopc])
 
 # A8.8.310
-armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("101"), sn_4_1, bs('101'), bs('1'), bs('0'), bs('1'), dn_1_x, bs('0'), dn_1_4], [sn_4_1, dn_1_4])
-armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("101"), sn_4_1, bs('101'), bs('0'), bs('0'), bs('1'), sm_x_1, bs('0'), sm_4_1], [sn_4_1, sm_4_1])
-armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("100"), sn_4_1, bs('101'), bs('1'), bs('0'), bs('1'), dn_1_x, bs('0'), dn_1_4], [sn_4_1, dn_1_4])
-armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("100"), sn_4_1, bs('101'), bs('0'), bs('0'), bs('1'), sm_x_1, bs('0'), sm_4_1], [sn_4_1, sm_4_1])
-# dp_operation = true
+armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("101"), sn_4_1, bs('101'), bs('1'), round_zero, bs('1'), dn_1_x, bs('0'), dn_1_4], [sn_4_1, dn_1_4])
+armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("101"), sn_4_1, bs('101'), bs('0'), round_zero, bs('1'), sm_x_1, bs('0'), sm_4_1], [sn_4_1, sm_4_1])
+armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("100"), sn_4_1, bs('101'), bs('1'), round_zero, bs('1'), dn_1_x, bs('0'), dn_1_4], [sn_4_1, dn_1_4])
+armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("100"), sn_4_1, bs('101'), bs('0'), round_zero, bs('1'), sm_x_1, bs('0'), sm_4_1], [sn_4_1, sm_4_1])
 armtop("vcvt", [bs('111011101'), dn_1_x, bs('111'), bs("000"), dn_1_4, bs('101'), bs('1'), bs('1'), bs('1'), sm_x_1, bs('0'), sm_4_1], [dn_1_4, sm_4_1])
 armtop("vcvt", [bs('111011101'), dn_1_x, bs('111'), bs("000"), dn_1_4, bs('101'), bs('1'), bs('0'), bs('1'), sm_x_1, bs('0'), sm_4_1], [dn_1_4, sm_4_1])
-# dp_operation = false
 armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("000"), sn_4_1, bs('101'), bs('0'), bs('1'), bs('1'), sm_x_1, bs('0'), sm_4_1], [sn_4_1, sm_4_1])
 armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("000"), sn_4_1, bs('101'), bs('0'), bs('0'), bs('1'), sm_x_1, bs('0'), sm_4_1], [sn_4_1, sm_4_1])
 
