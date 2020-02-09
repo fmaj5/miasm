@@ -231,7 +231,7 @@ reg_tests_arm = [
     ('XXXXXXXX    PKHTB      R1, R2, R3 ASR 0x8',
      '531482e6'),
     ('XXXXXXXX    PKHTB      R1, R2, R3 ASR 0x20',
-     '531082e6'),
+     '531082e6')
 
 
 ]
@@ -740,8 +740,10 @@ reg_tests_armt = [
      "00EE100A"),
     
     ("xxxxxxxx    VMOV       R2, R3, D0",
-     "53EC102B")
+     "53EC102B"),
 
+    ("xxxxxxxx    VCVT       D0, S0",
+     "B8EEC00B")
 ]
 
 
