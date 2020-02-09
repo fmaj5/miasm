@@ -1459,7 +1459,9 @@ class cls_mn(with_metaclass(metamn, object)):
                     break
 
                 if f.value is not None and f.l:
-                    assert f.value <= f.lmask
+                    if f.value > f.lmask:
+                        can_encode = False 
+                        break
                     cur_len += f.l
                 index += 1
                 if ret is True:

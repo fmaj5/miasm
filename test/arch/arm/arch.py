@@ -231,7 +231,7 @@ reg_tests_arm = [
     ('XXXXXXXX    PKHTB      R1, R2, R3 ASR 0x8',
      '531482e6'),
     ('XXXXXXXX    PKHTB      R1, R2, R3 ASR 0x20',
-     '531082e6'),
+     '531082e6')
 
 
 ]
@@ -604,7 +604,10 @@ reg_tests_armt = [
     ("xxxxxxxx    STRH       R3, [R0], 0x2",
      "20F8023B"),
 
-
+    ("xxxxxxxx    LDR        R5, [PC, 0xF80]",
+     "DFF8805F"),
+    ("xxxxxxxx    LDR        R1, [PC, 0xFFFFF970]",
+     "5FF89016"),
     ("xxxxxxxx    LDR        R3, [R0, 0xDC]",
      "D0F8DC30"),
     ("xxxxxxxx    LDR        R4, [SP], 0x4",
@@ -703,7 +706,51 @@ reg_tests_armt = [
     ("xxxxxxxx    CMP        R5, R0 LSR 0x8",
      "B5EB102F"),
 
+    ("xxxxxxxx    LDMIA      R0, {R2, R3, R6, R7}",
+     "90E8CC00"),
 
+    ("xxxxxxxx    DMB        SY",
+     "BFF35F8F"),
+
+    ("xxxxxxxx    STRB       R3, [R4, R8]",
+     "04F80830"),
+
+    ("xxxxxxxx    STRB       R2, [R3, R9]",
+     "03F80920"),
+
+    ("xxxxxxxx    LDREX      R3, [R1]",
+     "51E8003F"),
+
+    ("xxxxxxxx    LDREX      R2, [R12]",
+     "5CE8002F"),
+
+    ("xxxxxxxx    STREX      LR, R1, [R3]",
+     "43E8001E"),
+
+    ("xxxxxxxx    STREX      R0, LR, [R2]",
+     "42E800E0"),
+
+    ("xxxxxxxx    TEQ        R0, R1",
+     "90EA010F"),
+
+    ("xxxxxxxx    ADD        R0, SP, 0x714",
+     "0DF21470"),
+
+    ("xxxxxxxx    VMOV       S0, R0",
+     "00EE100A"),
+    
+    ("xxxxxxxx    VMOV       R2, R3, D0",
+     "53EC102B"),
+
+    ("xxxxxxxx    VCVT       D0, S0",
+     "B8EEC00B"),
+
+    ("xxxxxxxx    VMOV       R2, R3, D0",
+     "53EC102B"),
+
+    ("xxxxxxxx    VMOV       D0, R0, R1",
+     "41EC100B")
+                            
 ]
 print("#" * 40, 'armthumb', '#' * 40)
 
