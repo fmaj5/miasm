@@ -757,13 +757,12 @@ def blx(ir, instr, a):
     e.append(ExprAssign(LR, l))
     return e, []
 
+# todo
 def vmov(ir, instr, a, b, c=None):
-    e = [ExprAssign(a, b)]
-    dst = get_dst(a)
-    if dst is not None:
-        e.append(ExprAssign(ir.IRDst, b))
+    e = []
     return e, []
 
+# todo
 def vcvt(ir, instr, a, a2):
     e = []
     return e, []
