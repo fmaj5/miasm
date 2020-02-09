@@ -743,7 +743,14 @@ reg_tests_armt = [
      "53EC102B"),
 
     ("xxxxxxxx    VCVT       D0, S0",
-     "B8EEC00B")
+     "B8EEC00B"),
+
+    ("xxxxxxxx    VMOV       R2, R3, D0",
+     "53EC102B"),
+
+    ("xxxxxxxx    VMOV       D0, R0, R1",
+     "41EC100B")
+                            
 ]
 print("#" * 40, 'armthumb', '#' * 40)
 
