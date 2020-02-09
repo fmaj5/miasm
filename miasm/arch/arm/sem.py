@@ -835,9 +835,10 @@ def st_ld_r(ir, instr, a, a2, b, store=False, size=32, s_ext=False, z_ext=False)
 def ldr(ir, instr, a, b):
     return st_ld_r(ir, instr, a, None, b, store=False)
 
+# todo:
 def ldrex(ir, instr, a, b):
-    return st_ld_r(ir, instr, a, None, b, store=False)
-
+    e = []
+    return e, []
 
 def ldrd(ir, instr, a, b, c=None):
     if c is None:
@@ -851,6 +852,10 @@ def ldrd(ir, instr, a, b, c=None):
 def l_str(ir, instr, a, b):
     return st_ld_r(ir, instr, a, None, b, store=True)
 
+# todo:
+def strex(ir, instr, a, b, c=None):
+    e = []
+    return e, []
 
 def strex(ir, instr, a, b, c=None):
     if c is None:
@@ -1403,8 +1408,8 @@ def nop(ir, instr):
     e = []
     return e, []
 
+# todo:
 def dmb(ir, instr, a):
-    # XXX TODO
     e = []
     return e, []
 
@@ -1619,10 +1624,10 @@ mnemo_condm0 = {'add': add,
                 'ldr': ldr,
                 'ldrd': ldrd,
                 'ldrsb': ldrsb,
-                'ldrex': ldrex,  # XXX TODO: check
+                'ldrex': ldrex,
                 'str': l_str,
                 'strd': l_strd,
-                'strex': strex,  # XXX TODO: check
+                'strex': strex,
                 'b': b,
                 'bl': bl,
                 'svc': svc,
@@ -1740,7 +1745,7 @@ mnemo_nocond = {'lsr': lsr,
                 'smlatt': smlatt,
                 'uadd8': uadd8,
                 'sel': sel,
-                'dmb': dmb,
+                'dmb': dmb
                 }
 
 mn_cond_x = [mnemo_condm0,

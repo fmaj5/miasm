@@ -2111,7 +2111,6 @@ class arm_derefl(arm_deref_reg_imm):
 class arm_nopc_deref(arm_deref_reg_imm):
     reg_info = gpregs_nopc
 
-
 class arm_offbw(imm_noarg):
 
     def decode(self, v):
