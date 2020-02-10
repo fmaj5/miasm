@@ -752,7 +752,13 @@ reg_tests_armt = [
      "41EC100B"),
 
     ("xxxxxxxx    VCVT       S0, D0",
-     "BDEEC00B")
+     "BDEEC00B"),
+     
+    ("xxxxxxxx    VSTR       S0, [SP, 0x30]",
+     "8DED0C0A"),
+
+    ("xxxxxxxx    VSTR       D0, [SP, 0x90]",
+     "8DED240B")
                             
 ]
 

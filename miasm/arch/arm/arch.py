@@ -2389,6 +2389,7 @@ off5 = bs(l=5, cls=(arm_imm,), fname="off")
 off3 = bs(l=3, cls=(arm_imm,), fname="off")
 off8 = bs(l=8, cls=(arm_imm,), fname="off")
 off7 = bs(l=7, cls=(arm_off7,), fname="off")
+off8r2 = bs(l=8, cls=(arm_off7,), fname="off", order=-1)
 
 rdl = bs(l=3, cls=(arm_gpreg_l,), fname="rd")
 rnl = bs(l=3, cls=(arm_gpreg_l,), fname="rn")
@@ -3463,8 +3464,8 @@ armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("000"), sn_4_1, bs('101')
 armtop("vcvt", [bs('111011101'), sn_x_1, bs('111'), bs("000"), sn_4_1, bs('101'), bs('0'), bs('0'), bs('1'), sm_x_1, bs('0'), sm_4_1], [sn_4_1, sm_4_1])
 
 
-class armt_pc_deref(arm_arg):
-    parser = deref_pc
+class armt_rn_deref_u(arm_arg):
+    parser = deref_reg_imm
 
     def decode(self, v):
         v = v & self.lmask
@@ -3507,9 +3508,19 @@ class armt_pc_deref(arm_arg):
             return False
         return True
 
+class armt_pc_deref_u(armt_rn_deref_u):
+    parser = deref_pc
 
-pc_deref_u = bs("1111", l=4, cls=(armt_pc_deref,))
+class armt_nopc_deref_u(armt_rn_deref_u):
+    pass
+
 rn_nopc_deref = bs(l=4, cls=(arm_nopc_deref,), fname="rt")
+rn_nopc_deref_u = bs(l=4, cls=(armt_nopc_deref_u,))
+pc_deref_u = bs("1111", l=4, cls=(armt_pc_deref_u,))
+
+# A8.8.414
+armtop("vstr", [bs('11101101'), updown, dn_1_x, bs('00'), rn_nopc_deref_u, dn_1_4, bs('1011'), off8r2], [dn_1_4, rn_nopc_deref_u])
+armtop("vstr", [bs('11101101'), updown, sn_x_1, bs('00'), rn_nopc_deref_u, sn_4_1, bs('1010'), off8r2], [sn_4_1, rn_nopc_deref_u])
 
 # doc: ARM DDI 0406C.d A8-411
 armtop("ldr",  [bs('11111000'), updown, bs('101'), pc_deref_u, rt, off12], [rt, pc_deref_u])
