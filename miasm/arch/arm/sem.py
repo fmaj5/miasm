@@ -764,6 +764,11 @@ def vmov(ir, instr, a, b, c=None):
     return e, []
 
 # todo
+def vstr(ir, instr, a, b):
+    e = []
+    return e, []
+
+# todo
 def vcvt(ir, instr, a, a2):
     e = []
     return e, []
@@ -1613,6 +1618,7 @@ mnemo_condm1 = {'adds': add,
                 'strb': strb,
 
                 'vmov': vmov,
+                'vstr': vstr,
                 'vcvt': vcvt
                 }
 
