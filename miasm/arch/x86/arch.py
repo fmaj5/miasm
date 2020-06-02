@@ -278,7 +278,7 @@ class x86_arg(m_arg):
             if value.name in ["FAR"]:
                 return None
 
-            loc_key = loc_db.get_or_create_name_location(value.name.encode())
+            loc_key = loc_db.get_or_create_name_location(value.name)
             return ExprLoc(loc_key, size_hint)
         if isinstance(value, AstOp):
             # First pass to retrieve fixed_size
@@ -481,7 +481,7 @@ class instruction_x86(instruction):
         expr = self.args[0]
         if not expr.is_int():
             return
-        addr = expr.arg + int(self.offset)
+        addr = (int(expr) + int(self.offset)) & int(expr.mask)
         loc_key = loc_db.get_or_create_offset_location(addr)
         self.args[0] = ExprLoc(loc_key, expr.size)
 
@@ -547,7 +547,7 @@ class instruction_x86(instruction):
 
     def __str__(self):
         return self.to_string()
-      
+
     def to_string(self, loc_db=None):
         o = super(instruction_x86, self).to_string(loc_db)
         if self.additional_info.g1.value & 1:
@@ -1706,7 +1706,7 @@ def exprfindmod(e, o=None):
 
 def test_addr_size(ptr, size):
     if isinstance(ptr, ExprInt):
-        return ptr.arg < (1 << size)
+        return int(ptr) < (1 << size)
     else:
         return ptr.size == size
 
@@ -1767,13 +1767,13 @@ def parse_mem(expr, parent, w8, sx=0, xmm=0, mm=0, bnd=0):
             value = ExprInt(int(disp), cast_size)
             if admode < value.size:
                 if signed:
-                    if int(disp.arg) != sign_ext(int(value), admode, disp.size):
+                    if int(disp) != sign_ext(int(value), admode, disp.size):
                         continue
                 else:
-                    if int(disp.arg) != int(value):
+                    if int(disp) != int(value):
                         continue
             else:
-                if int(disp.arg) != sign_ext(int(value), value.size, admode):
+                if int(disp) != sign_ext(int(value), value.size, admode):
                     continue
             x1 = dict(dct_expr)
             x1[f_imm] = (encoding, value)
@@ -1913,7 +1913,10 @@ def modrm2expr(modrm, parent, w8, sx=0, xmm=0, mm=0, bnd=0):
         if parent.disp.value is None:
             return None
         o.append(ExprInt(int(parent.disp.expr), admode))
-    expr = ExprOp('+', *o)
+    if len(o) == 1:
+        expr = o[0]
+    else:
+        expr = ExprOp('+', *o)
     if w8 == 0:
         opmode = 8
     elif sx == 1:
@@ -2918,7 +2921,7 @@ class bs_rel_off(bs_cond_imm):
         parent_len = len(prefix) * 8 + self.parent.l + self.l
         assert(parent_len % 8 == 0)
 
-        v = int(self.expr.arg) - parent_len // 8
+        v = int(self.expr) - parent_len // 8
         if prefix is None:
             return
         mask = ((1 << self.l) - 1)

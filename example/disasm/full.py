@@ -9,9 +9,8 @@ from miasm.analysis.binary import Container
 from miasm.core.asmblock import log_asmblock, AsmCFG
 from miasm.core.interval import interval
 from miasm.analysis.machine import Machine
-from miasm.analysis.data_flow import dead_simp, \
-    DiGraphDefUse, ReachingDefinitions, \
-    replace_stack_vars, load_from_int, del_unused_edges
+from miasm.analysis.data_flow import \
+    DiGraphDefUse, ReachingDefinitions, load_from_int
 from miasm.expression.simplifications import expr_simp
 from miasm.analysis.ssa import SSADiGraph
 from miasm.ir.ir import AssignBlock, IRBlock
@@ -65,10 +64,6 @@ parser.add_argument('-p', "--ssa", action="store_true",
                     help="Generate the ssa form in  'ssa.dot'.")
 parser.add_argument('-x', "--propagexpr", action="store_true",
                     help="Do Expression propagation.")
-parser.add_argument('-y', "--stack2var", action="store_true",
-                    help="*Try* to do transform stack accesses into variables. "
-                    "Use only with --propagexpr option. "
-                    "WARNING: not reliable, may fail.")
 parser.add_argument('-e', "--loadint", action="store_true",
                     help="Load integers from binary in fixed memory lookup.")
 parser.add_argument('-j', "--calldontmodstack", action="store_true",
@@ -213,7 +208,6 @@ if args.propagexpr:
 
 
 class IRADelModCallStack(ira):
-
         def call_effects(self, addr, instr):
             assignblks, extra = super(IRADelModCallStack, self).call_effects(addr, instr)
             if not args.calldontmodstack:
@@ -283,34 +277,6 @@ if args.gen_ir:
 
 
 if args.propagexpr:
-    class IRAOutRegs(ira):
-        def get_out_regs(self, block):
-            regs_todo = super(self.__class__, self).get_out_regs(block)
-            out = {}
-            for assignblk in block:
-                for dst in assignblk:
-                    reg = self.ssa_var.get(dst, None)
-                    if reg is None:
-                        continue
-                    if reg in regs_todo:
-                        out[reg] = dst
-            return set(viewvalues(out))
-
-    # Add dummy dependency to uncover out regs assignment
-    for loc in ircfg_a.leaves():
-        irblock = ircfg_a.blocks.get(loc)
-        if irblock is None:
-            continue
-        regs = {}
-        for reg in ir_arch_a.get_out_regs(irblock):
-            regs[reg] = reg
-        assignblks = list(irblock)
-        new_assiblk = AssignBlock(regs, assignblks[-1].instr)
-        assignblks.append(new_assiblk)
-        new_irblock = IRBlock(irblock.loc_key, assignblks)
-        ircfg_a.blocks[loc] = new_irblock
-
-
 
     def is_addr_ro_variable(bs, addr, size):
         """
@@ -327,9 +293,6 @@ if args.propagexpr:
             return False
         return True
 
-    ir_arch_a = IRAOutRegs(mdis.loc_db)
-
-
     class CustomIRCFGSimplifierSSA(IRCFGSimplifierSSA):
         def do_simplify(self, ssa, head):
             modified = super(CustomIRCFGSimplifierSSA, self).do_simplify(ssa, head)
@@ -341,18 +304,12 @@ if args.propagexpr:
             ssa = self.do_simplify_loop(ssa, head)
             ircfg = self.ssa_to_unssa(ssa, head)
 
-            if args.stack2var:
-                replace_stack_vars(self.ir_arch, ircfg)
-
             ircfg_simplifier = IRCFGSimplifierCommon(self.ir_arch)
+            ircfg_simplifier.deadremoval.add_expr_to_original_expr(ssa.ssa_variable_to_expr)
             ircfg_simplifier.simplify(ircfg, head)
             return ircfg
 
-
-
-
     head = list(entry_points)[0]
-    ir_arch_a = IRAOutRegs(mdis.loc_db)
     simplifier = CustomIRCFGSimplifierSSA(ir_arch_a)
     ircfg = simplifier.simplify(ircfg_a, head)
     open('final.dot', 'w').write(ircfg.dot())

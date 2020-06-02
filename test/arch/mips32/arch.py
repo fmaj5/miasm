@@ -214,6 +214,44 @@ reg_tests_mips32 = [
 
     ("XXXXXXXX    LDC1       F22, 0xFFFF9148(V0)",
      "D4569148"),
+
+    ("XXXXXXXX    BEQL       S0, V0, 0x124",
+     "52020048"),
+    ("XXXXXXXX    BGEZL      T3, 0x24",
+     "05630008"),
+    ("XXXXXXXX    BNEL       A0, ZERO, 0x2C",
+     "5480000A"),
+    ("XXXXXXXX    BLTZL      S6, 0x5C",
+     "06C20016"),
+    ("XXXXXXXX    BLEZL      V1, 0x80",
+     "5860001F"),
+    ("XXXXXXXX    BGTZL      S4, 0x14",
+     "5E800004"),
+    ("XXXXXXXX    BC1FL      FCC0, 0x24",
+     "45020008"),
+    ("XXXXXXXX    BC1TL      FCC0, 0xB8",
+     "4503002D"),
+
+    ("XXXXXXXX    CLZ        K0, K1",
+     "737AD020"),
+
+    ("XXXXXXXX    LL         A0, 0x123(A1)",
+     "C0A40123"),
+    ("XXXXXXXX    SC         A1, 0x123(A0)",
+     "E0850123"),
+
+    ("XXXXXXXX    SYNC       0x19",
+     "0000064F"),
+    ("XXXXXXXX    TLBR       ",
+     "42000001"),
+
+    ("XXXXXXXX    ERET       ",
+     "42000018"),
+
+    ("XXXXXXXX    MTHI       A0",
+     "00800011"),
+    ("XXXXXXXX    MTLO       A1",
+     "00A00013")
 ]
 
 

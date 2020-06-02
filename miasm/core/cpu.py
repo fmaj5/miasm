@@ -1590,13 +1590,8 @@ class imm_noarg(object):
         if e == [None]:
             return None, None
 
-        assert(isinstance(e, m2_expr.Expr))
-        if isinstance(e, tuple):
-            self.expr = self.int2expr(e[1])
-        elif isinstance(e, m2_expr.Expr):
-            self.expr = e
-        else:
-            raise TypeError('zarb expr')
+        assert(m2_expr.is_expr(e))
+        self.expr = e
         if self.expr is None:
             log.debug('cannot fromstring int %r', text)
             return None, None

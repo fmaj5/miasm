@@ -121,7 +121,7 @@ class MemArray(MutableMapping):
     content relatively to an integer offset from *base*.
 
     The value associated to a given offset is a description of the slice of a
-    stored expression. The slice size depends on the configutation of the
+    stored expression. The slice size depends on the configuration of the
     MemArray. For example, for a slice size of 8 bits, the assignment:
     - @32[EAX+0x10] = EBX
 
@@ -567,7 +567,7 @@ class MemSparse(object):
         memarray = self.base_to_memarray.get(base, None)
         if memarray is not None:
             mems = memarray.read(offset, size)
-            ret = ExprCompose(*mems)
+            ret = mems[0] if len(mems) == 1 else ExprCompose(*mems)
         else:
             ret = ExprMem(ptr, size)
         return ret
@@ -1096,7 +1096,7 @@ class SymbolicExecutionEngine(object):
         """
 
         # Update value if needed
-        if expr.is_aff():
+        if expr.is_assign():
             ret = self.eval_expr(expr.src)
             self.eval_updt_assignblk(AssignBlock([expr]))
         else:
