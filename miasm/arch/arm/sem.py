@@ -857,10 +857,6 @@ def ldrd(ir, instr, a, b, c=None):
 def l_str(ir, instr, a, b):
     return st_ld_r(ir, instr, a, None, b, store=True)
 
-# todo:
-def strex(ir, instr, a, b, c=None):
-    e = []
-    return e, []
 
 def strex(ir, instr, a, b, c=None):
     if c is None:
@@ -1946,9 +1942,12 @@ class ir_arml(IntermediateRepresentation):
                 it_instr_irblocks = new_irblocks
 
             irblocks += it_instr_irblocks
-            dst = ExprAssign(self.IRDst, ExprLoc(loc_next, 32))
-            dst_blk = AssignBlock([dst], instr)
-            assignments.append(dst_blk)
+            if len([x for x in assignments if self.IRDst in list(x)]) > 0:
+                pass
+            else:
+                dst = ExprAssign(self.IRDst, ExprLoc(loc_next, 32))
+                dst_blk = AssignBlock([dst], instr)
+                assignments.append(dst_blk)
             irblock = IRBlock(loc, assignments)
             irblocks.append(irblock)
             loc = loc_next

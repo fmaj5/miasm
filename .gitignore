@@ -5,3 +5,6 @@
 # Compiled python files
 *\.pyc
 /.idea/
+/venv/
+/.vscode/
+miasm/VERSION

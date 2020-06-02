@@ -1,4 +1,5 @@
 """Data flow analysis based on miasm intermediate representation"""
+from __future__ import print_function
 from builtins import range
 from collections import namedtuple
 
