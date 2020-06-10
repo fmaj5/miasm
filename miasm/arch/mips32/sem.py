@@ -67,6 +67,12 @@ def lbu(arg1, arg2):
     arg1 = mem8[arg2.ptr].zeroExtend(32)
 
 @sbuild.parse
+def lh(arg1, arg2):
+    """A word is loaded into a register @arg1 from the
+    specified address @arg2."""
+    arg1 = mem16[arg2.ptr].signExtend(32)
+
+@sbuild.parse
 def lhu(arg1, arg2):
     """A word is loaded (unsigned extended) into a register @arg1 from the
     specified address @arg2."""
@@ -78,9 +84,21 @@ def lb(arg1, arg2):
     arg1 = mem8[arg2.ptr].signExtend(32)
 
 @sbuild.parse
+def ll(arg1, arg2):
+    "To load a word from memory for an atomic read-modify-write"
+    arg1 = arg2
+
+@sbuild.parse
 def beq(arg1, arg2, arg3):
     "Branches on @arg3 if the quantities of two registers @arg1, @arg2 are eq"
     dst = arg3 if ExprOp(m2_expr.TOK_EQUAL, arg1, arg2) else ExprLoc(ir.get_next_break_loc_key(instr), ir.IRDst.size)
+    PC = dst
+    ir.IRDst = dst
+
+@sbuild.parse
+def beql(arg1, arg2, arg3):
+    "Branches on @arg3 if the quantities of two registers @arg1, @arg2 are eq"
+    dst = arg3 if ExprOp(m2_expr.TOK_EQUAL, arg1, arg2) else ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size)
     PC = dst
     ir.IRDst = dst
 
@@ -93,10 +111,26 @@ def bgez(arg1, arg2):
     ir.IRDst = dst
 
 @sbuild.parse
+def bgezl(arg1, arg2):
+    """Branches on @arg2 if the quantities of register @arg1 is greater than or
+    equal to zero"""
+    dst = ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size) if ExprOp(m2_expr.TOK_INF_SIGNED, arg1, ExprInt(0, arg1.size)) else arg2
+    PC = dst
+    ir.IRDst = dst
+
+@sbuild.parse
 def bne(arg1, arg2, arg3):
     """Branches on @arg3 if the quantities of two registers @arg1, @arg2 are NOT
     equal"""
     dst = ExprLoc(ir.get_next_break_loc_key(instr), ir.IRDst.size) if ExprOp(m2_expr.TOK_EQUAL, arg1, arg2) else arg3
+    PC = dst
+    ir.IRDst = dst
+
+@sbuild.parse
+def bnel(arg1, arg2, arg3):
+    """Branches on @arg3 if the quantities of two registers @arg1, @arg2 are NOT
+    equal"""
+    dst = ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size) if ExprOp(m2_expr.TOK_EQUAL, arg1, arg2) else arg3
     PC = dst
     ir.IRDst = dst
 
@@ -109,6 +143,14 @@ def lui(arg1, arg2):
 @sbuild.parse
 def nop():
     """Do nothing"""
+
+@sbuild.parse
+def sync(arg1):
+    """Synchronize Shared Memory"""
+
+@sbuild.parse
+def pref(arg1, arg2):
+    """To move data between memory and cache"""
 
 @sbuild.parse
 def j(arg1):
@@ -248,6 +290,13 @@ def bltz(arg1, arg2):
     ir.IRDst = dst_o
 
 @sbuild.parse
+def bltzl(arg1, arg2):
+    """Branches on @arg2 if the register @arg1 is less than zero"""
+    dst_o = arg2 if ExprOp(m2_expr.TOK_INF_SIGNED, arg1, ExprInt(0, arg1.size)) else ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size)
+    PC = dst_o
+    ir.IRDst = dst_o
+
+@sbuild.parse
 def blez(arg1, arg2):
     """Branches on @arg2 if the register @arg1 is less than or equal to zero"""
     cond = ExprOp(m2_expr.TOK_INF_EQUAL_SIGNED, arg1, ExprInt(0, arg1.size))
@@ -256,10 +305,26 @@ def blez(arg1, arg2):
     ir.IRDst = dst_o
 
 @sbuild.parse
+def blezl(arg1, arg2):
+    """Branches on @arg2 if the register @arg1 is less than or equal to zero"""
+    cond = ExprOp(m2_expr.TOK_INF_EQUAL_SIGNED, arg1, ExprInt(0, arg1.size))
+    dst_o = arg2 if cond else ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size)
+    PC = dst_o
+    ir.IRDst = dst_o
+
+@sbuild.parse
 def bgtz(arg1, arg2):
     """Branches on @arg2 if the register @arg1 is greater than zero"""
     cond =  ExprOp(m2_expr.TOK_INF_EQUAL_SIGNED, arg1, ExprInt(0, arg1.size))
     dst_o = ExprLoc(ir.get_next_break_loc_key(instr), ir.IRDst.size) if cond else arg2
+    PC = dst_o
+    ir.IRDst = dst_o
+
+@sbuild.parse
+def bgtzl(arg1, arg2):
+    """Branches on @arg2 if the register @arg1 is greater than zero"""
+    cond =  ExprOp(m2_expr.TOK_INF_EQUAL_SIGNED, arg1, ExprInt(0, arg1.size))
+    dst_o = ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size) if cond else arg2
     PC = dst_o
     ir.IRDst = dst_o
 
@@ -320,6 +385,14 @@ def tlbwi():
 def tlbp():
     "TODO XXX"
 
+@sbuild.parse
+def tlbwr():
+    "TODO XXX"
+
+@sbuild.parse
+def tlbr():
+    "TODO XXX"
+
 def ins(ir, instr, a, b, c, d):
     e = []
     pos = int(c)
@@ -327,12 +400,12 @@ def ins(ir, instr, a, b, c, d):
 
     my_slices = []
     if pos != 0:
-        my_slices.append((a[:pos], 0, pos))
+        my_slices.append(a[:pos])
     if l != 0:
-        my_slices.append((b[:l], pos, pos+l))
+        my_slices.append(b[:l])
     if pos + l != 32:
-        my_slices.append((a[pos+l:], pos+l, 32))
-    r = m2_expr.ExprCompose(my_slices)
+        my_slices.append(a[pos+l:])
+    r = m2_expr.ExprCompose(*my_slices)
     e.append(m2_expr.ExprAssign(a, r))
     return e, []
 
@@ -364,8 +437,20 @@ def bc1t(arg1, arg2):
     ir.IRDst = dst_o
 
 @sbuild.parse
+def bc1tl(arg1, arg2):
+    dst_o = arg2 if arg1 else ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size)
+    PC = dst_o
+    ir.IRDst = dst_o
+
+@sbuild.parse
 def bc1f(arg1, arg2):
     dst_o = ExprLoc(ir.get_next_break_loc_key(instr), ir.IRDst.size) if arg1 else arg2
+    PC = dst_o
+    ir.IRDst = dst_o
+
+@sbuild.parse
+def bc1fl(arg1, arg2):
+    dst_o = ExprLoc(ir.get_next_delay_loc_key(instr), ir.IRDst.size) if arg1 else arg2
     PC = dst_o
     ir.IRDst = dst_o
 
@@ -424,6 +509,23 @@ def ei(arg1):
 def ehb(arg1):
     "NOP"
 
+@sbuild.parse
+def sc(arg1, arg2):
+    arg2 = arg1;
+    arg1 = ExprInt(0x1, 32)
+
+@sbuild.parse
+def mthi(arg1):
+    R_HI = arg1
+
+@sbuild.parse
+def mtlo(arg1):
+    R_LOW = arg1
+
+def clz(ir, instr, rs, rd):
+    e = []
+    e.append(ExprAssign(rd, ExprOp('cntleadzeros', rs)))
+    return e, []
 
 def teq(ir, instr, arg1, arg2):
     e = []
@@ -436,9 +538,31 @@ def teq(ir, instr, arg1, arg2):
     do_except.append(m2_expr.ExprAssign(exception_flags, m2_expr.ExprInt(
         EXCEPT_DIV_BY_ZERO, exception_flags.size)))
     do_except.append(m2_expr.ExprAssign(ir.IRDst, loc_next_expr))
-    blk_except = IRBlock(loc_except.index, [AssignBlock(do_except, instr)])
+    blk_except = IRBlock(loc_except, [AssignBlock(do_except, instr)])
 
     cond = arg1 - arg2
+
+
+    e = []
+    e.append(m2_expr.ExprAssign(ir.IRDst,
+                             m2_expr.ExprCond(cond, loc_next_expr, loc_except_expr)))
+
+    return e, [blk_except]
+
+def tne(ir, instr, arg1, arg2):
+    e = []
+
+    loc_except, loc_except_expr = ir.gen_loc_key_and_expr(ir.IRDst.size)
+    loc_next = ir.get_next_loc_key(instr)
+    loc_next_expr = m2_expr.ExprLoc(loc_next, ir.IRDst.size)
+
+    do_except = []
+    do_except.append(m2_expr.ExprAssign(exception_flags, m2_expr.ExprInt(
+        EXCEPT_DIV_BY_ZERO, exception_flags.size)))
+    do_except.append(m2_expr.ExprAssign(ir.IRDst, loc_next_expr))
+    blk_except = IRBlock(loc_except, [AssignBlock(do_except, instr)])
+
+    cond = arg1 ^ arg2
 
 
     e = []
@@ -473,8 +597,10 @@ mnemo_func.update({
         'subu': l_sub,
         'xor': l_xor,
         'xori': l_xor,
+        'clz': clz,
         'teq': teq,
-})
+        'tne': tne
+        })
 
 def get_mnemo_expr(ir, instr, *args):
     instr, extra_ir = mnemo_func[instr.name.lower()](ir, instr, *args)
@@ -510,6 +636,9 @@ class ir_mips32l(IntermediateRepresentation):
 
     def get_next_break_loc_key(self, instr):
         return self.loc_db.get_or_create_offset_location(instr.offset  + 8)
+
+    def get_next_delay_loc_key(self, instr):
+        return self.loc_db.get_or_create_offset_location(instr.offset + 16)
 
 class ir_mips32b(ir_mips32l):
     def __init__(self, loc_db=None):

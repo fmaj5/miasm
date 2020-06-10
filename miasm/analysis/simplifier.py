@@ -8,10 +8,11 @@ from miasm.analysis.ssa import SSADiGraph
 from miasm.analysis.outofssa import UnSSADiGraph
 from miasm.analysis.data_flow import DiGraphLivenessSSA
 from miasm.expression.simplifications import expr_simp
-from miasm.analysis.data_flow import dead_simp, \
+from miasm.ir.ir import AssignBlock, IRBlock
+from miasm.analysis.data_flow import DeadRemoval, \
     merge_blocks, remove_empty_assignblks, \
-    PropagateExprIntThroughExprId, PropagateThroughExprId, \
-    PropagateThroughExprMem, del_unused_edges
+    del_unused_edges, \
+    PropagateExpressions, DelDummyPhi
 
 
 log = logging.getLogger("simplifier")
@@ -83,6 +84,7 @@ class IRCFGSimplifierCommon(IRCFGSimplifier):
     def __init__(self, ir_arch, expr_simp=expr_simp):
         self.expr_simp = expr_simp
         super(IRCFGSimplifierCommon, self).__init__(ir_arch)
+        self.deadremoval = DeadRemoval(self.ir_arch)
 
     def init_passes(self):
         self.passes = [
@@ -114,7 +116,7 @@ class IRCFGSimplifierCommon(IRCFGSimplifier):
         @ircfg: IRCFG instance to simplify
         @head: Location instance of the ircfg head
         """
-        modified = dead_simp(self.ir_arch, ircfg)
+        modified = self.deadremoval(ircfg)
         modified |= remove_empty_assignblks(ircfg)
         modified |= merge_blocks(ircfg, set([head]))
         return modified
@@ -127,9 +129,7 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
     and apply out-of-ssa. Final passes of IRcfgSimplifier are applied
 
     This class apply following pass until reaching a fix point:
-    - do_propagate_int
-    - do_propagate_mem
-    - do_propagate_expr
+    - do_propagate_expressions
     - do_dead_simp_ssa
     """
 
@@ -141,9 +141,10 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
 
         self.ssa_forbidden_regs = self.get_forbidden_regs()
 
-        self.propag_int = PropagateExprIntThroughExprId()
-        self.propag_expr = PropagateThroughExprId()
-        self.propag_mem = PropagateThroughExprMem()
+        self.propag_expressions = PropagateExpressions()
+        self.del_dummy_phi = DelDummyPhi()
+
+        self.deadremoval = DeadRemoval(self.ir_arch, self.all_ssa_vars)
 
     def get_forbidden_regs(self):
         """
@@ -164,11 +165,15 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
         """
         self.passes = [
             self.simplify_ssa,
-            self.do_propagate_int,
-            self.do_propagate_mem,
-            self.do_propagate_expr,
+            self.do_propagate_expressions,
+            self.do_del_dummy_phi,
             self.do_dead_simp_ssa,
+            self.do_remove_empty_assignblks,
+            self.do_del_unused_edges,
+            self.do_merge_blocks,
         ]
+
+
 
     def ircfg_to_ssa(self, ircfg, head):
         """
@@ -217,8 +222,15 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
         @head: Location instance of the graph head
         """
         modified = self.propag_int.propagate(ssa, head)
-        modified |= ssa.graph.simplify(self.expr_simp)
-        modified |= del_unused_edges(ssa.graph, set([head]))
+        return modified
+
+    @fix_point
+    def do_del_unused_edges(self, ssa, head):
+        """
+        Del unused edges of the ssa graph
+        @head: Location instance of the graph head
+        """
+        modified = del_unused_edges(ssa.graph, set([head]))
         return modified
 
     @fix_point
@@ -228,26 +240,48 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
         @head: Location instance of the graph head
         """
         modified = self.propag_mem.propagate(ssa, head)
-        modified |= ssa.graph.simplify(self.expr_simp)
-        modified |= del_unused_edges(ssa.graph, set([head]))
         return modified
 
-    @fix_point
-    def do_propagate_expr(self, ssa, head):
+    def do_propagate_expressions(self, ssa, head):
         """
         Expressions propagation through ExprId in the @ssa graph
         @head: Location instance of the graph head
         """
-        modified = self.propag_expr.propagate(ssa, head)
-        modified |= ssa.graph.simplify(self.expr_simp)
-        modified |= del_unused_edges(ssa.graph, set([head]))
+        modified = self.propag_expressions.propagate(ssa, head)
+        return modified
+
+    @fix_point
+    def do_del_dummy_phi(self, ssa, head):
+        """
+        Del dummy phi
+        @head: Location instance of the graph head
+        """
+        modified = self.del_dummy_phi.del_dummy_phi(ssa, head)
+        return modified
+
+    @fix_point
+    def do_remove_empty_assignblks(self, ssa, head):
+        """
+        Remove empty assignblks
+        @head: Location instance of the graph head
+        """
+        modified = remove_empty_assignblks(ssa.graph)
+        return modified
+
+    @fix_point
+    def do_merge_blocks(self, ssa, head):
+        """
+        Merge blocks with one parent/son
+        @head: Location instance of the graph head
+        """
+        modified = merge_blocks(ssa.graph, set([head]))
         return modified
 
     @fix_point
     def do_dead_simp_ssa(self, ssa, head):
         """
         Apply:
-        - dead_simp
+        - deadrm
         - remove_empty_assignblks
         - del_unused_edges
         - merge_blocks
@@ -257,10 +291,7 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
         @ircfg: IRCFG instance to simplify
         @head: Location instance of the ircfg head
         """
-        modified = dead_simp(self.ir_arch, ssa.graph)
-        modified |= remove_empty_assignblks(ssa.graph)
-        modified |= del_unused_edges(ssa.graph, set([head]))
-        modified |= merge_blocks(ssa.graph, set([head]))
+        modified = self.deadremoval(ssa.graph)
         return modified
 
     def do_simplify(self, ssa, head):
@@ -285,6 +316,7 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
 
     def simplify(self, ircfg, head):
         """
+        Add access to "abi out regs" in each leaf block
         Apply SSA transformation to @ircfg
         Apply passes until reaching a fix point
         Apply out-of-ssa transformation
@@ -295,9 +327,11 @@ class IRCFGSimplifierSSA(IRCFGSimplifierCommon):
         @ircfg: IRCFG instance to simplify
         @head: Location instance of the ircfg head
         """
+
         ssa = self.ircfg_to_ssa(ircfg, head)
         ssa = self.do_simplify_loop(ssa, head)
         ircfg = self.ssa_to_unssa(ssa, head)
         ircfg_simplifier = IRCFGSimplifierCommon(self.ir_arch)
+        ircfg_simplifier.deadremoval.add_expr_to_original_expr(self.all_ssa_vars)
         ircfg_simplifier.simplify(ircfg, head)
         return ircfg

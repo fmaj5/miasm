@@ -5,7 +5,7 @@ import logging
 import struct
 import termios
 
-from miasm.jitter.csts import EXCEPT_PRIV_INSN, EXCEPT_INT_XX
+from miasm.jitter.csts import EXCEPT_INT_XX, EXCEPT_SYSCALL
 from miasm.core.utils import pck64
 
 log = logging.getLogger('syscalls')
@@ -87,6 +87,37 @@ def sys_generic_brk(jitter, linux_env):
 
     # Stub
     jitter.syscall_ret_systemv(linux_env.brk(addr, jitter.vm))
+
+
+def sys_x86_32_newuname(jitter, linux_env):
+    # struct utsname {
+    #     char sysname[];    /* Operating system name (e.g., "Linux") */
+    #     char nodename[];   /* Name within "some implementation-defined
+    #                            network" */
+    #     char release[];    /* Operating system release (e.g., "2.6.28") */
+    #     char version[];    /* Operating system version */
+    #     char machine[];    /* Hardware identifier */
+    # }
+
+    # Parse arguments
+    nameptr, = jitter.syscall_args_systemv(1)
+    log.debug("sys_newuname(%x)", nameptr)
+
+    # Stub
+    info = [
+        linux_env.sys_sysname,
+        linux_env.sys_nodename,
+        linux_env.sys_release,
+        linux_env.sys_version,
+        linux_env.sys_machine
+    ]
+    # TODO: Elements start at 0x41 multiples on my tests...
+    output = b""
+    for elem in info:
+        output += elem
+        output += b"\x00" * (0x41 - len(elem))
+    jitter.vm.set_mem(nameptr, output)
+    jitter.syscall_ret_systemv(0)
 
 
 def sys_x86_64_newuname(jitter, linux_env):
@@ -370,7 +401,7 @@ def sys_x86_64_arch_prctl(jitter, linux_env):
         jitter.cpu.set_segm_base(jitter.cpu.FS, addr)
     elif code == 0x3001:
         # CET status (disabled)
-        jitter.cpu.set_mem(addr, pck64(0))
+        jitter.vm.set_mem(addr, pck64(0))
     else:
         raise RuntimeError("Not implemented")
     jitter.cpu.RAX = 0
@@ -650,7 +681,7 @@ def sys_x86_64_connect(jitter, linux_env):
     log.debug("sys_connect(%x, %r, %x)", fd, raddr, addrlen)
 
     # Stub
-    # Always refuse the connexion
+    # Always refuse the connection
     jitter.cpu.RAX = -1
 
 
@@ -867,6 +898,11 @@ def sys_arml_gettimeofday(jitter, linux_env):
     jitter.cpu.R0 = 0
 
 
+syscall_callbacks_x86_32 = {
+    0x7A: sys_x86_32_newuname,
+}
+
+
 syscall_callbacks_x86_64 = {
     0x0: sys_generic_read,
     0x1: sys_generic_write,
@@ -943,16 +979,12 @@ syscall_callbacks_arml = {
 }
 
 def syscall_x86_64_exception_handler(linux_env, syscall_callbacks, jitter):
-    """Call to actually handle an EXCEPT_PRIV_INSN exception
+    """Call to actually handle an EXCEPT_SYSCALL exception
     In the case of an error raised by a SYSCALL, call the corresponding
     syscall_callbacks
     @linux_env: LinuxEnvironment_x86_64 instance
     @syscall_callbacks: syscall number -> func(jitter, linux_env)
     """
-    # Ensure the jitter has break on a SYSCALL
-    cur_instr = jitter.jit.mdis.dis_instr(jitter.pc)
-    if cur_instr.name != "SYSCALL":
-        return True
 
     # Dispatch to SYSCALL stub
     syscall_number = jitter.cpu.RAX
@@ -966,14 +998,13 @@ def syscall_x86_64_exception_handler(linux_env, syscall_callbacks, jitter):
 
     # Clean exception and move pc to the next instruction, to let the jitter
     # continue
-    jitter.cpu.set_exception(jitter.cpu.get_exception() ^ EXCEPT_PRIV_INSN)
-    jitter.pc += cur_instr.l
+    jitter.cpu.set_exception(jitter.cpu.get_exception() ^ EXCEPT_SYSCALL)
     return True
 
 
 
 def syscall_x86_32_exception_handler(linux_env, syscall_callbacks, jitter):
-    """Call to actually handle an EXCEPT_PRIV_INSN exception
+    """Call to actually handle an EXCEPT_INT_XX exception
     In the case of an error raised by a SYSCALL, call the corresponding
     syscall_callbacks
     @linux_env: LinuxEnvironment_x86_32 instance
@@ -1042,7 +1073,7 @@ def enable_syscall_handling(jitter, linux_env, syscall_callbacks):
     if arch_name == "x8664":
         handler = syscall_x86_64_exception_handler
         handler = functools.partial(handler, linux_env, syscall_callbacks)
-        jitter.add_exception_handler(EXCEPT_PRIV_INSN, handler)
+        jitter.add_exception_handler(EXCEPT_SYSCALL, handler)
     elif arch_name == "x8632":
         handler = syscall_x86_32_exception_handler
         handler = functools.partial(handler, linux_env, syscall_callbacks)
@@ -1053,4 +1084,3 @@ def enable_syscall_handling(jitter, linux_env, syscall_callbacks):
         jitter.add_exception_handler(EXCEPT_INT_XX, handler)
     else:
         raise ValueError("No syscall handler implemented for %s" % arch_name)
-

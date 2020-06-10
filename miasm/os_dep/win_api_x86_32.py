@@ -157,6 +157,9 @@ class c_winobjs(object):
         self.cryptcontext_num = 0
         self.cryptcontext = {}
         self.phhash_crypt_md5 = 0x55555
+        # key used by EncodePointer and DecodePointer
+        # (kernel32)
+        self.ptr_encode_key = 0xabababab
         self.files_hwnd = {}
         self.windowlong_dw = 0x77700
         self.module_cur_hwnd = 0x88800
@@ -272,7 +275,7 @@ class mdl(object):
 
 def kernel32_HeapAlloc(jitter):
     ret_ad, args = jitter.func_args_stdcall(["heap", "flags", "size"])
-    alloc_addr = winobjs.heap.alloc(jitter, args.size)
+    alloc_addr = winobjs.heap.alloc(jitter, args.size, cmt=hex(ret_ad))
     jitter.func_ret_stdcall(ret_ad, alloc_addr)
 
 
@@ -420,6 +423,36 @@ def kernel32_CloseHandle(jitter):
     ret_ad, _ = jitter.func_args_stdcall(["hwnd"])
     jitter.func_ret_stdcall(ret_ad, 1)
 
+def kernel32_EncodePointer(jitter):
+    """
+        PVOID EncodePointer(
+            _In_ PVOID Ptr
+        );
+
+        Encoding globally available pointers helps protect them from being
+        exploited. The EncodePointer function obfuscates the pointer value
+        with a secret so that it cannot be predicted by an external agent.
+        The secret used by EncodePointer is different for each process.
+
+        A pointer must be decoded before it can be used.
+
+    """
+    ret, args = jitter.func_args_stdcall(1)
+    jitter.func_ret_stdcall(ret, args[0] ^ winobjs.ptr_encode_key)
+    return True
+
+def kernel32_DecodePointer(jitter):
+    """
+        PVOID DecodePointer(
+           PVOID Ptr
+        );
+
+        The function returns the decoded pointer.
+
+    """
+    ret, args = jitter.func_args_stdcall(1)
+    jitter.func_ret_stdcall(ret, args[0] ^ winobjs.ptr_encode_key)
+    return True
 
 def user32_GetForegroundWindow(jitter):
     ret_ad, _ = jitter.func_args_stdcall(0)
@@ -505,7 +538,7 @@ def advapi32_CryptHashData(jitter):
 
     data = jitter.vm.get_mem(args.pbdata, args.dwdatalen)
     log.debug('will hash %X', args.dwdatalen)
-    log.debug(repr(data[:10]) + "...")
+    log.debug(repr(data[:0x10]) + "...")
     winobjs.cryptcontext[args.hhash].h.update(data)
     jitter.func_ret_stdcall(ret_ad, 1)
 
@@ -518,12 +551,18 @@ def advapi32_CryptGetHashParam(jitter):
         raise ValueError("unknown crypt context")
 
     if args.param == 2:
+        # HP_HASHVAL
         # XXX todo: save h state?
         h = winobjs.cryptcontext[args.hhash].h.digest()
+        jitter.vm.set_mem(args.pbdata, h)
+        jitter.vm.set_u32(args.dwdatalen, len(h))
+    elif args.param == 4:
+        # HP_HASHSIZE
+        ret = winobjs.cryptcontext[args.hhash].h.digest_size
+        jitter.vm.set_u32(args.pbdata, ret)
+        jitter.vm.set_u32(args.dwdatalen, 4)
     else:
         raise ValueError('not impl', args.param)
-    jitter.vm.set_mem(args.pbdata, h)
-    jitter.vm.set_u32(args.dwdatalen, len(h))
 
     jitter.func_ret_stdcall(ret_ad, 1)
 
@@ -606,7 +645,7 @@ def kernel32_CreateFile(jitter, funcname, get_str):
                         h = open(sb_fname, 'r+b')
                         ret = winobjs.handle_pool.add(sb_fname, h)
                 else:
-                    log.warning("FILE %r DOES NOT EXIST!", fname)
+                    log.warning("FILE %r (%s) DOES NOT EXIST!", fname, sb_fname)
             elif args.dwcreationdisposition == 1:
                 # create new
                 if os.access(sb_fname, os.R_OK):
@@ -759,11 +798,13 @@ def kernel32_VirtualProtect(jitter):
         jitter.vm.set_u32(args.lpfloldprotect, ACCESS_DICT_INV[old])
 
     paddr = args.lpvoid - (args.lpvoid % winobjs.alloc_align)
-    psize = args.dwsize
+    paddr_max = (args.lpvoid + args.dwsize + winobjs.alloc_align - 1)
+    paddr_max_round = paddr_max - (paddr_max % winobjs.alloc_align)
+    psize = paddr_max_round - paddr
     for addr, items in list(winobjs.allocated_pages.items()):
         alloc_addr, alloc_size = items
-        if not (alloc_addr <= paddr and
-                paddr + psize <= alloc_addr + alloc_size):
+        if (paddr + psize <= alloc_addr or
+            paddr > alloc_addr + alloc_size):
             continue
         size = jitter.vm.get_all_memory()[addr]["size"]
         # Page is included in Protect area
@@ -1112,20 +1153,21 @@ def kernel32_GetCommandLineW(jitter):
 def shell32_CommandLineToArgvW(jitter):
     ret_ad, args = jitter.func_args_stdcall(["pcmd", "pnumargs"])
     cmd = get_win_str_w(jitter, args.pcmd)
+    if cmd.startswith('"') and cmd.endswith('"'):
+        cmd = cmd[1:-1]
     log.info("CommandLineToArgv %r", cmd)
     tks = cmd.split(' ')
     addr = winobjs.heap.alloc(jitter, len(cmd) * 2 + 4 * len(tks))
     addr_ret = winobjs.heap.alloc(jitter, 4 * (len(tks) + 1))
     o = 0
     for i, t in enumerate(tks):
-        jitter.set_win_str_w(addr + o, t)
+        set_win_str_w(jitter, addr + o, t)
         jitter.vm.set_u32(addr_ret + 4 * i, addr + o)
         o += len(t)*2 + 2
 
-    jitter.vm.set_u32(addr_ret + 4 * i, 0)
+    jitter.vm.set_u32(addr_ret + 4 * (i+1), 0)
     jitter.vm.set_u32(args.pnumargs, len(tks))
     jitter.func_ret_stdcall(ret_ad, addr_ret)
-
 
 def cryptdll_MD5Init(jitter):
     ret_ad, args = jitter.func_args_stdcall(["ad_ctx"])
@@ -1333,7 +1375,7 @@ def ntoskrnl_RtlGetVersion(jitter):
                     0x2,  # min vers
                     0x666,  # build nbr
                     0x2,   # platform id
-                    ) + jitter.set_win_str_w("Service pack 4")
+                    ) + encode_win_str_w("Service pack 4")
 
     jitter.vm.set_mem(args.ptr_version, s)
     jitter.func_ret_stdcall(ret_ad, 0)
@@ -1519,7 +1561,7 @@ def kernel32_lstrcpy(jitter):
 def msvcrt__mbscpy(jitter):
     ret_ad, args = jitter.func_args_cdecl(["ptr_str1", "ptr_str2"])
     s2 = get_win_str_w(jitter, args.ptr_str2)
-    jitter.set_win_str_w(args.ptr_str1, s2)
+    set_win_str_w(jitter, args.ptr_str1, s2)
     jitter.func_ret_cdecl(ret_ad, args.ptr_str1)
 
 def msvcrt_wcscpy(jitter):
@@ -1533,7 +1575,7 @@ def kernel32_lstrcpyn(jitter):
     if len(s2) >= args.mlen:
         s2 = s2[:args.mlen - 1]
     log.info("Copy '%r'", s2)
-    jitter.set_win_str_a(args.ptr_str1, s2)
+    set_win_str_a(jitter, args.ptr_str1, s2)
     jitter.func_ret_stdcall(ret_ad, args.ptr_str1)
 
 
@@ -1628,15 +1670,82 @@ def kernel32_GetVolumeInformationW(jitter):
 
 
 def kernel32_MultiByteToWideChar(jitter):
+    MB_ERR_INVALID_CHARS = 0x8
+    CP_ACP  = 0x000
+    CP_1252 = 0x4e4
+
     ret_ad, args = jitter.func_args_stdcall(["codepage", "dwflags",
                                              "lpmultibytestr",
                                              "cbmultibyte",
                                              "lpwidecharstr",
                                              "cchwidechar"])
-    src = get_win_str_a(jitter, args.lpmultibytestr)
-    l = len(src) + 1
-    set_win_str_w(jitter, args.lpwidecharstr, src)
-    jitter.func_ret_stdcall(ret_ad, l)
+    if args.codepage != CP_ACP and args.codepage != CP_1252:
+        raise NotImplementedError
+    # according to MSDN:
+    # "Note that, if cbMultiByte is 0, the function fails."
+    if args.cbmultibyte == 0:
+        raise ValueError
+    # according to MSDN:
+    # "Alternatively, this parameter can be set to -1 if the string is
+    #  null-terminated."
+    if args.cbmultibyte == 0xffffffff:
+        src_len = 0
+        while jitter.vm.get_mem(args.lpmultibytestr + src_len, 1) != b'\0':
+            src_len += 1
+        src = jitter.vm.get_mem(args.lpmultibytestr, src_len)
+    else:
+        src = jitter.vm.get_mem(args.lpmultibytestr, args.cbmultibyte)
+    if args.dwflags & MB_ERR_INVALID_CHARS:
+        # will raise an exception if decoding fails
+        s = src.decode("cp1252", errors="replace").encode("utf-16le")
+    else:
+        # silently replace undecodable chars with U+FFFD
+        s = src.decode("cp1252", errors="replace").encode("utf-16le")
+    if args.cchwidechar > 0:
+        # return value is number of bytes written
+        retval = min(args.cchwidechar, len(s))
+        jitter.vm.set_mem(args.lpwidecharstr, s[:retval])
+    else:
+        # return value is number of bytes to write
+        # i.e., size of dest. buffer to allocate
+        retval = len(s)
+    jitter.func_ret_stdcall(ret_ad, retval)
+
+
+def kernel32_WideCharToMultiByte(jitter):
+    """
+        int WideCharToMultiByte(
+          UINT                               CodePage,
+          DWORD                              dwFlags,
+          _In_NLS_string_(cchWideChar)LPCWCH lpWideCharStr,
+          int                                cchWideChar,
+          LPSTR                              lpMultiByteStr,
+          int                                cbMultiByte,
+          LPCCH                              lpDefaultChar,
+          LPBOOL                             lpUsedDefaultChar
+        );
+
+    """
+    CP_ACP  = 0x000
+    CP_1252 = 0x4e4
+
+    ret, args = jitter.func_args_stdcall([
+        'CodePage', 'dwFlags', 'lpWideCharStr', 'cchWideChar',
+        'lpMultiByteStr', 'cbMultiByte', 'lpDefaultChar', 'lpUsedDefaultChar',
+      ])
+    if args.CodePage != CP_ACP and args.CodePage != CP_1252:
+        raise NotImplementedError
+    src = jitter.vm.get_mem(args.lpWideCharStr, args.cchWideChar * 2)
+    dst = src.decode("utf-16le").encode("cp1252", errors="replace")
+    if args.cbMultiByte > 0:
+        # return value is the number of bytes written
+        retval = min(args.cbMultiByte, len(dst))
+        jitter.vm.set_mem(args.lpMultiByteStr, dst[:retval])
+    else:
+        # return value is the size of the buffer to allocate
+        # to get the multibyte string
+        retval = len(dst)
+    jitter.func_ret_stdcall(ret, retval)
 
 
 def my_GetEnvironmentVariable(jitter, funcname, get_str, set_str, mylen):
@@ -1870,6 +1979,7 @@ def ntdll_LdrLoadDll(jitter):
     libname = s.lower()
 
     ad = winobjs.runtime_dll.lib_get_add_base(libname)
+    log.info("Loading %r ret 0x%x", s, ad)
     jitter.vm.set_u32(args.modhandle, ad)
 
     jitter.func_ret_stdcall(ret_ad, 0)
@@ -1911,7 +2021,7 @@ def msvcrt_memset(jitter):
 def msvcrt_strrchr(jitter):
     ret_ad, args = jitter.func_args_cdecl(['pstr','c'])
     s = get_win_str_a(jitter, args.pstr)
-    c = int_to_byte(args.c)
+    c = int_to_byte(args.c).decode()
     ret = args.pstr + s.rfind(c)
     log.info("strrchr(%x '%s','%s') = %x" % (args.pstr,s,c,ret))
     jitter.func_ret_cdecl(ret_ad, ret)
@@ -1919,7 +2029,7 @@ def msvcrt_strrchr(jitter):
 def msvcrt_wcsrchr(jitter):
     ret_ad, args = jitter.func_args_cdecl(['pstr','c'])
     s = get_win_str_w(jitter, args.pstr)
-    c = int_to_byte(args.c)
+    c = int_to_byte(args.c).decode()
     ret = args.pstr + (s.rfind(c)*2)
     log.info("wcsrchr(%x '%s',%s) = %x" % (args.pstr,s,c,ret))
     jitter.func_ret_cdecl(ret_ad, ret)
@@ -2339,13 +2449,88 @@ def user32_GetKeyboardType(jitter):
 
     jitter.func_ret_stdcall(ret_ad, ret)
 
+    
+class startupinfo(object):
+    """
+        typedef struct _STARTUPINFOA {
+          /* 00000000 */ DWORD  cb;
+          /* 00000004 */ LPSTR  lpReserved;
+          /* 00000008 */ LPSTR  lpDesktop;
+          /* 0000000C */ LPSTR  lpTitle;
+          /* 00000010 */ DWORD  dwX;
+          /* 00000014 */ DWORD  dwY;
+          /* 00000018 */ DWORD  dwXSize;
+          /* 0000001C */ DWORD  dwYSize;
+          /* 00000020 */ DWORD  dwXCountChars;
+          /* 00000024 */ DWORD  dwYCountChars;
+          /* 00000028 */ DWORD  dwFillAttribute;
+          /* 0000002C */ DWORD  dwFlags;
+          /* 00000030 */ WORD   wShowWindow;
+          /* 00000032 */ WORD   cbReserved2;
+          /* 00000034 */ LPBYTE lpReserved2;
+          /* 00000038 */ HANDLE hStdInput;
+          /* 0000003C */ HANDLE hStdOutput;
+          /* 00000040 */ HANDLE hStdError;
+        } STARTUPINFOA, *LPSTARTUPINFOA;
+
+    """
+    # TODO: fill with relevant values
+    # for now, struct is just a placeholder
+    cb = 0x0
+    lpReserved = 0x0
+    lpDesktop = 0x0
+    lpTitle = 0x0
+    dwX = 0x0
+    dwY = 0x0
+    dwXSize = 0x0
+    dwYSize = 0x0
+    dwXCountChars = 0x0
+    dwYCountChars = 0x0
+    dwFillAttribute = 0x0
+    dwFlags = 0x0
+    wShowWindow = 0x0
+    cbReserved2 = 0x0
+    lpReserved2 = 0x0
+    hStdInput = 0x0
+    hStdOutput = 0x0
+    hStdError = 0x0
+
+    def pack(self):
+        return struct.pack('IIIIIIIIIIIIHHIIII',
+                self.cb,
+                self.lpReserved,
+                self.lpDesktop,
+                self.lpTitle,
+                self.dwX,
+                self.dwY,
+                self.dwXSize,
+                self.dwYSize,
+                self.dwXCountChars,
+                self.dwYCountChars,
+                self.dwFillAttribute,
+                self.dwFlags,
+                self.wShowWindow,
+                self.cbReserved2,
+                self.lpReserved2,
+                self.hStdInput,
+                self.hStdOutput,
+                self.hStdError)
+
 
 def kernel32_GetStartupInfo(jitter, funcname, set_str):
+    """
+        void GetStartupInfo(
+          LPSTARTUPINFOW lpStartupInfo
+        );
+
+        Retrieves the contents of the STARTUPINFO structure that was specified
+        when the calling process was created.
+        
+        https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getstartupinfow
+
+    """
     ret_ad, args = jitter.func_args_stdcall(["ptr"])
-
-    s = b"\x00" * 0x2c + b"\x81\x00\x00\x00" + b"\x0a"
-
-    jitter.vm.set_mem(args.ptr, s)
+    jitter.vm.set_mem(args.ptr, startupinfo().pack())
     jitter.func_ret_stdcall(ret_ad, args.ptr)
 
 
@@ -2877,7 +3062,7 @@ class win32_find_data(object):
         for k, v in viewitems(kargs):
             setattr(self, k, v)
 
-    def toStruct(self):
+    def toStruct(self, encode_str=encode_win_str_w):
         s = struct.pack('=IQQQIIII',
                         self.fileattrib,
                         self.creationtime,
@@ -2887,10 +3072,10 @@ class win32_find_data(object):
                         self.filesizelow,
                         self.dwreserved0,
                         self.dwreserved1)
-        fname = self.cfilename.encode('utf-8') + b'\x00' * MAX_PATH
+        fname = encode_str(self.cfilename) + b'\x00' * MAX_PATH
         fname = fname[:MAX_PATH]
         s += fname
-        fname = self.alternamefilename.encode('utf-8') + b'\x00' * 14
+        fname = encode_str(self.alternamefilename) + b'\x00' * 14
         fname = fname[:14]
         s += fname
         return s
@@ -2927,33 +3112,66 @@ class find_data_mngr(object):
 
         return fname
 
-
-def kernel32_FindFirstFileA(jitter):
-    ret_ad, args = jitter.func_args_stdcall(["pfilepattern", "pfindfiledata"])
-
-    filepattern = get_win_str_a(jitter, args.pfilepattern)
+def my_FindFirstFile(jitter, pfilepattern, pfindfiledata, get_win_str, encode_str):
+    filepattern = get_win_str(jitter, pfilepattern)
     h = winobjs.find_data.findfirst(filepattern)
 
     fname = winobjs.find_data.findnext(h)
     fdata = win32_find_data(cfilename=fname)
 
-    jitter.vm.set_mem(args.pfindfiledata, fdata.toStruct())
+    jitter.vm.set_mem(pfindfiledata, fdata.toStruct(encode_str=encode_str))
+    return h
+
+def kernel32_FindFirstFileA(jitter):
+    ret_ad, args = jitter.func_args_stdcall(["pfilepattern", "pfindfiledata"])
+    h = my_FindFirstFile(jitter, args.pfilepattern, args.pfindfiledata,
+                           get_win_str_a, encode_win_str_a)
     jitter.func_ret_stdcall(ret_ad, h)
 
+def kernel32_FindFirstFileW(jitter):
+    ret_ad, args = jitter.func_args_stdcall(["pfilepattern", "pfindfiledata"])
+    h = my_FindFirstFile(jitter, args.pfilepattern, args.pfindfiledata,
+                           get_win_str_w, encode_win_str_w)
+    jitter.func_ret_stdcall(ret_ad, h)
 
-def kernel32_FindNextFileA(jitter):
+def kernel32_FindFirstFileExA(jitter):
+    ret_ad, args = jitter.func_args_stdcall([
+        "lpFileName",
+        "fInfoLevelId",
+        "lpFindFileData",
+        "fSearchOp",
+        "lpSearchFilter",
+        "dwAdditionalFlags"])
+    h = my_FindFirstFile(jitter, args.lpFileName, args.lpFindFileData,
+                         get_win_str_a, encode_win_str_a)
+    jitter.func_ret_stdcall(ret_ad, h)
+
+def kernel32_FindFirstFileExW(jitter):
+    ret_ad, args = jitter.func_args_stdcall([
+        "lpFileName",
+        "fInfoLevelId",
+        "lpFindFileData",
+        "fSearchOp",
+        "lpSearchFilter",
+        "dwAdditionalFlags"])
+    h = my_FindFirstFile(jitter, args.lpFileName, args.lpFindFileData,
+                         get_win_str_w, encode_win_str_w)
+    jitter.func_ret_stdcall(ret_ad, h)
+
+def my_FindNextFile(jitter, encode_str):
     ret_ad, args = jitter.func_args_stdcall(["handle", "pfindfiledata"])
-
     fname = winobjs.find_data.findnext(args.handle)
     if fname is None:
+        winobjs.lastwin32error = 0x12 # ERROR_NO_MORE_FILES
         ret = 0
     else:
         ret = 1
         fdata = win32_find_data(cfilename=fname)
-        jitter.vm.set_mem(args.pfindfiledata, fdata.toStruct())
-
+        jitter.vm.set_mem(args.pfindfiledata, fdata.toStruct(encode_str=encode_str))
     jitter.func_ret_stdcall(ret_ad, ret)
 
+kernel32_FindNextFileA = lambda jitter: my_FindNextFile(jitter, encode_win_str_a)
+kernel32_FindNextFileW = lambda jitter: my_FindNextFile(jitter, encode_win_str_w)
 
 def kernel32_GetNativeSystemInfo(jitter):
     ret_ad, args = jitter.func_args_stdcall(["sys_ptr"])
@@ -3034,3 +3252,338 @@ def msvcrt_strlen(jitter):
 
     s = get_win_str_a(jitter, args.src)
     jitter.func_ret_cdecl(ret_ad, len(s))
+
+
+def kernel32_QueryPerformanceCounter(jitter):
+    ret_ad, args = jitter.func_args_stdcall(["lpPerformanceCount"])
+    jitter.vm.set_mem(args.lpPerformanceCount, struct.pack('<Q', 0x1))
+    jitter.func_ret_stdcall(ret_ad, 1)
+
+
+def kernel32_InitializeCriticalSectionEx(jitter):
+    '''
+      LPCRITICAL_SECTION lpCriticalSection,
+      DWORD              dwSpinCount,
+      DWORD              Flags
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["lpCriticalSection", "dwSpinCount", "Flags"])
+    jitter.func_ret_stdcall(ret_ad, 1)
+
+
+def kernel32_EnterCriticalSection(jitter):
+    '''
+    void EnterCriticalSection(
+      LPCRITICAL_SECTION lpCriticalSection
+    );
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["lpCriticalSection"])
+    jitter.func_ret_stdcall(ret_ad, 0x0)
+
+
+def kernel32_LeaveCriticalSection(jitter):
+    '''
+    void LeaveCriticalSection(
+      LPCRITICAL_SECTION lpCriticalSection
+    );
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["lpCriticalSection"])
+    jitter.func_ret_stdcall(ret_ad, 0x0)
+
+
+class FLS(object):
+    def __init__(self):
+        self.slots = []
+
+    def kernel32_FlsAlloc(self, jitter):
+        '''
+        DWORD FlsAlloc(
+          PFLS_CALLBACK_FUNCTION lpCallback
+        );
+        '''
+        ret_ad, args = jitter.func_args_stdcall(["lpCallback"])
+        index = len(self.slots)
+        self.slots.append(0x0)
+        jitter.func_ret_stdcall(ret_ad, index)
+
+    def kernel32_FlsSetValue(self, jitter):
+        '''
+        BOOL FlsSetValue(
+          DWORD dwFlsIndex,
+          PVOID lpFlsData
+        );
+        '''
+        ret_ad, args = jitter.func_args_stdcall(["dwFlsIndex", "lpFlsData"])
+        self.slots[args.dwFlsIndex] = args.lpFlsData
+        jitter.func_ret_stdcall(ret_ad, 1)
+
+    def kernel32_FlsGetValue(self, jitter):
+        '''
+        PVOID FlsGetValue(
+          DWORD dwFlsIndex
+        );
+        '''
+        ret_ad, args = jitter.func_args_stdcall(["dwFlsIndex"])
+        jitter.func_ret_stdcall(ret_ad, self.slots[args.dwFlsIndex])
+
+fls = FLS()
+
+
+def kernel32_GetProcessHeap(jitter):
+    '''
+    HANDLE GetProcessHeap();
+    '''
+    ret_ad, args = jitter.func_args_stdcall([])
+    hHeap = 0x67676767
+    jitter.func_ret_stdcall(ret_ad, hHeap)
+
+
+STD_INPUT_HANDLE = 0xfffffff6
+STD_OUTPUT_HANDLE = 0xfffffff5
+STD_ERROR_HANDLE = 0xfffffff4
+
+
+def kernel32_GetStdHandle(jitter):
+    '''
+    HANDLE WINAPI GetStdHandle(
+      _In_ DWORD nStdHandle
+    );
+
+    STD_INPUT_HANDLE (DWORD)-10
+    The standard input device. Initially, this is the console input buffer, CONIN$.
+
+    STD_OUTPUT_HANDLE (DWORD)-11
+    The standard output device. Initially, this is the active console screen buffer, CONOUT$.
+
+    STD_ERROR_HANDLE (DWORD)-12
+    The standard error device. Initially, this is the active console screen buffer, CONOUT$.
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["nStdHandle"])
+    jitter.func_ret_stdcall(ret_ad, {
+        STD_OUTPUT_HANDLE: 1,
+        STD_ERROR_HANDLE: 2,
+        STD_INPUT_HANDLE: 3,
+    }[args.nStdHandle])
+
+
+FILE_TYPE_UNKNOWN = 0x0000
+FILE_TYPE_CHAR = 0x0002
+
+
+def kernel32_GetFileType(jitter):
+    '''
+    DWORD GetFileType(
+      HANDLE hFile
+    );
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["hFile"])
+    jitter.func_ret_stdcall(ret_ad, {
+        # STD_OUTPUT_HANDLE
+        1: FILE_TYPE_CHAR,
+        # STD_ERROR_HANDLE
+        2: FILE_TYPE_CHAR,
+        # STD_INPUT_HANDLE
+        3: FILE_TYPE_CHAR,
+    }.get(args.hFile, FILE_TYPE_UNKNOWN))
+
+
+def kernel32_IsProcessorFeaturePresent(jitter):
+    '''
+    BOOL IsProcessorFeaturePresent(
+      DWORD ProcessorFeature
+    );
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["ProcessorFeature"])
+    jitter.func_ret_stdcall(ret_ad, {
+        # PF_ARM_64BIT_LOADSTORE_ATOMIC
+        25: False,
+        # PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE
+        24: False,
+        # PF_ARM_EXTERNAL_CACHE_AVAILABLE
+        26: False,
+        # PF_ARM_FMAC_INSTRUCTIONS_AVAILABLE
+        27: False,
+        # PF_ARM_VFP_32_REGISTERS_AVAILABLE
+        18: False,
+        # PF_3DNOW_INSTRUCTIONS_AVAILABLE
+        7: False,
+        # PF_CHANNELS_ENABLED
+        16: True,
+        # PF_COMPARE_EXCHANGE_DOUBLE
+        2: False,
+        # PF_COMPARE_EXCHANGE128
+        14: False,
+        # PF_COMPARE64_EXCHANGE128
+        15: False,
+        # PF_FASTFAIL_AVAILABLE
+        23: False,
+        # PF_FLOATING_POINT_EMULATED
+        1: False,
+        # PF_FLOATING_POINT_PRECISION_ERRATA
+        0: True,
+        # PF_MMX_INSTRUCTIONS_AVAILABLE
+        3: True,
+        # PF_NX_ENABLED
+        12: True,
+        # PF_PAE_ENABLED
+        9: True,
+        # PF_RDTSC_INSTRUCTION_AVAILABLE
+        8: True,
+        # PF_RDWRFSGSBASE_AVAILABLE
+        22: True,
+        # PF_SECOND_LEVEL_ADDRESS_TRANSLATION
+        20: True,
+        # PF_SSE3_INSTRUCTIONS_AVAILABLE
+        13: True,
+        # PF_VIRT_FIRMWARE_ENABLED
+        21: False,
+        # PF_XMMI_INSTRUCTIONS_AVAILABLE
+        6: True,
+        # PF_XMMI64_INSTRUCTIONS_AVAILABLE
+        10: True,
+        # PF_XSAVE_ENABLED
+        17: False,
+    }[args.ProcessorFeature])
+
+
+def kernel32_GetACP(jitter):
+    '''
+    UINT GetACP();
+    '''
+    ret_ad, args = jitter.func_args_stdcall([])
+    # Windows-1252: Latin 1 / Western European  Superset of ISO-8859-1 (without C1 controls).
+    jitter.func_ret_stdcall(ret_ad, 1252)
+
+
+# ref: https://docs.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
+VALID_CODE_PAGES = {
+    37,437,500,708,709,710,720,737,775,850,852,855,857,858,860,861,862,863,864,865,866,869,870,874,875,
+    932,936,949,950,1026,1047,1140,1141,1142,1143,1144,1145,1146,1147,1148,1149,1200,1201,1250,1251,1252,
+    1253,1254,1255,1256,1257,1258,1361,10000,10001,10002,10003,10004,10005,10006,10007,10008,10010,10017,
+    10021,10029,10079,10081,10082,12000,12001,20000,20001,20002,20003,20004,20005,20105,20106,20107,20108,
+    20127,20261,20269,20273,20277,20278,20280,20284,20285,20290,20297,20420,20423,20424,20833,20838,20866,
+    20871,20880,20905,20924,20932,20936,20949,21025,21027,21866,28591,28592,28593,28594,28595,28596,28597,
+    28598,28599,28603,28605,29001,38598,50220,50221,50222,50225,50227,50229,50930,50931,50933,50935,50936,
+    50937,50939,51932,51936,51949,51950,52936,54936,57002,57003,57004,57005,57006,57007,57008,57009,57010,
+    57011,65000,65001
+}
+
+
+def kernel32_IsValidCodePage(jitter):
+    '''
+    BOOL IsValidCodePage(
+      UINT CodePage
+    );
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["CodePage"])
+    jitter.func_ret_stdcall(ret_ad, args.CodePage in VALID_CODE_PAGES)
+
+
+def kernel32_GetCPInfo(jitter):
+    '''
+    BOOL GetCPInfo(
+      UINT     CodePage,
+      LPCPINFO lpCPInfo
+    );
+    '''
+    ret_ad, args = jitter.func_args_stdcall(["CodePage", "lpCPInfo"])
+    assert args.CodePage == 1252
+    # ref: http://www.rensselaer.org/dept/cis/software/g77-mingw32/include/winnls.h
+    #define MAX_LEADBYTES       12
+    #define MAX_DEFAULTCHAR	2
+    jitter.vm.set_mem(args.lpCPInfo, struct.pack('<I', 0x1) + b'??' + b'\x00' * 12)
+    jitter.func_ret_stdcall(ret_ad, 1)
+
+
+def kernel32_GetStringTypeW(jitter):
+    """
+        BOOL GetStringTypeW(
+          DWORD                         dwInfoType,
+          _In_NLS_string_(cchSrc)LPCWCH lpSrcStr,
+          int                           cchSrc,
+          LPWORD                        lpCharType
+        );
+
+        Retrieves character type information for the characters in the specified
+        Unicode source string. For each character in the string, the function
+        sets one or more bits in the corresponding 16-bit element of the output
+        array. Each bit identifies a given character type, for example, letter,
+        digit, or neither.
+
+    """
+    # These types support ANSI C and POSIX (LC_CTYPE) character typing
+    # functions.A bitwise-OR of these values is retrieved in the array in the
+    # output buffer when dwInfoType is set to CT_CTYPE1. For DBCS locales, the
+    # type attributes apply to both narrow characters and wide characters. The
+    # Japanese hiragana and katakana characters, and the kanji ideograph
+    # characters all have the C1_ALPHA attribute.
+    CT_TYPE1 = 0x01
+    # TODO handle other types of information
+    # (CT_TYPE2, CT_TYPE3)
+    # for now, they raise NotImplemented
+    CT_TYPE2 = 0x02
+    CT_TYPE3 = 0x03
+
+    C1_UPPER   = 0x0001  # Uppercase
+    C1_LOWER   = 0x0002  # Lowercase
+    C1_DIGIT   = 0x0004  # Decimal digits
+    C1_SPACE   = 0x0008  # Space characters
+    C1_PUNCT   = 0x0010  # Punctuation
+    C1_CNTRL   = 0x0020  # Control characters
+    C1_BLANK   = 0x0040  # Blank characters
+    C1_XDIGIT  = 0x0080  # Hexadecimal digits
+    C1_ALPHA   = 0x0100  # Any linguistic character: alphabetical, syllabary, or ideographic
+    C1_DEFINED = 0x0200  # A defined character, but not one of the other C1_* types
+
+    # the following sets have been generated from the Linux python library curses
+    # e.g., C1_PUNCT_SET = [chr(i) for i in range(256) if curses.ascii.ispunct(chr(i))]
+    C1_PUNCT_SET = ['!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',',
+            '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']',
+            '^', '_', '`', '{', '|', '}', '~']
+    C1_CNTRL_SET = ['\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06',
+            '\x07', '\x08', '\t', '\n', '\x0b', '\x0c', '\r', '\x0e', '\x0f',
+            '\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17',
+            '\x18', '\x19', '\x1a', '\x1b', '\x1c', '\x1d', '\x1e', '\x1f',
+            '\x7f']
+    C1_BLANK_SET = ['\t', ' ']
+    C1_XDIGIT_SET = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',
+            'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f']
+
+    ret, args = jitter.func_args_stdcall(['dwInfoType', 'lpSrcStr', 'cchSrc',
+        'lpCharType'])
+    s = jitter.vm.get_mem(args.lpSrcStr, args.cchSrc).decode("utf-16")
+    if args.dwInfoType == CT_TYPE1:
+        # iterate over characters from the decoded W string
+        for i, c in enumerate(s):
+            # TODO handle non-ascii characters
+            if not c.isascii():
+                continue
+            val = 0
+            if c.isupper():
+                val |= C1_UPPER
+            if c.islower():
+                val |= C1_LOWER
+            if c.isdigit():
+                val |= C1_DIGIT
+            if c.isspace():
+                val |= C1_SPACE
+            if c in C1_PUNCT_SET:
+                val |= C1_PUNCT
+            if c in C1_CNTRL_SET:
+                val |= C1_CNTRL
+            if c in C1_BLANK_SET:
+                val |= C1_BLANK
+            if c in C1_XDIGIT_SET:
+                val |= C1_XDIGIT
+            if c.isalpha():
+                val |= C1_ALPHA
+            if val == 0:
+                val = C1_DEFINED
+            jitter.vm.set_u16(args.lpCharType + i * 2, val)
+    elif args.dwInfoType == CT_TYPE2:
+        raise NotImplemented
+    elif args.dwInfoType == CT_TYPE3:
+        raise NotImplemented
+    else:
+        raise ValueError("CT_TYPE unknown: %i" % args.dwInfoType)
+    jitter.func_ret_stdcall(ret, 1)
+    return True
