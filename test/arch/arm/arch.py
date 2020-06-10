@@ -231,7 +231,7 @@ reg_tests_arm = [
     ('XXXXXXXX    PKHTB      R1, R2, R3 ASR 0x8',
      '531482e6'),
     ('XXXXXXXX    PKHTB      R1, R2, R3 ASR 0x20',
-     '531082e6')
+     '531082e6'),
 
     ('XXXXXXXX    MRC        p15, 0x0, R0, c1, c1, 0x0',
      '110f11ee'),
@@ -384,6 +384,8 @@ reg_tests_armt = [
     ("0006ae6c    LDR        R3, [SP, 0x4]",
      "019b"),
 
+    ("xxxxxxxx    ADD        R7, SP, 0xC",
+     "03af"),
     ("0006aed0    ADD        R1, SP, 0x20",
      "08a9"),
     ("000xxxxx    ADD        R1, PC, 0x20",
