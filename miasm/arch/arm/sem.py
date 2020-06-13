@@ -970,20 +970,6 @@ def blx(ir, instr, a):
     e.append(ExprAssign(LR, l))
     return e, []
 
-# todo
-def vmov(ir, instr, a, b, c=None):
-    e = []
-    return e, []
-
-# todo
-def vstr(ir, instr, a, b):
-    e = []
-    return e, []
-
-# todo
-def vcvt(ir, instr, a, a2):
-    e = []
-    return e, []
 
 def st_ld_r(ir, instr, a, a2, b, store=False, size=32, s_ext=False, z_ext=False):
     e = []
@@ -1052,10 +1038,6 @@ def st_ld_r(ir, instr, a, a2, b, store=False, size=32, s_ext=False, z_ext=False)
 def ldr(ir, instr, a, b):
     return st_ld_r(ir, instr, a, None, b, store=False)
 
-# todo:
-def ldrex(ir, instr, a, b):
-    e = []
-    return e, []
 
 def ldrd(ir, instr, a, b, c=None):
     if c is None:
@@ -1068,84 +1050,6 @@ def ldrd(ir, instr, a, b, c=None):
 
 def l_str(ir, instr, a, b):
     return st_ld_r(ir, instr, a, None, b, store=True)
-
-
-def strex(ir, instr, a, b, c=None):
-    if c is None:
-        a2 = ir.arch.regs.all_regs_ids[ir.arch.regs.all_regs_ids.index(a) + 1]
-    else:
-        a2 = b
-        b = c
-
-    s_ext=False
-    z_ext=False
-    size = 64
-    store = True
-
-    e = []
-    wb = False
-    b = b.copy()
-    postinc = False
-    b = b.ptr
-    if isinstance(b, ExprOp):
-        if b.op == "wback":
-            wb = True
-            b = b.args[0]
-        if b.op == "postinc":
-            postinc = True
-    if isinstance(b, ExprOp) and b.op in ["postinc", 'preinc']:
-        # XXX TODO CHECK
-        base, off = b.args[0],  b.args[1]  # ExprInt(size/8, 32)
-    else:
-        base, off = b, ExprInt(0, 32)
-    if postinc:
-        ad = base
-    else:
-        ad = base + off
-
-    # PC base lookup uses PC 4 byte alignment
-    ad = ad.replace_expr({PC: PC & ExprInt(0xFFFFFFFC, 32)})
-
-    dmem = False
-    if size in [8, 16]:
-        if store:
-            a = a[:size]
-            m = ExprMem(ad, size=size)
-        elif s_ext:
-            m = ExprMem(ad, size=size).signExtend(a.size)
-        elif z_ext:
-            m = ExprMem(ad, size=size).zeroExtend(a.size)
-        else:
-            raise ValueError('unhandled case')
-    elif size == 32:
-        m = ExprMem(ad, size=size)
-    elif size == 64:
-        assert a2 is not None
-        m = ExprMem(ad, size=32)
-        dmem = True
-        size = 32
-    else:
-        raise ValueError('the size DOES matter')
-    dst = None
-
-    if store:
-        # always 0
-        e.append(ExprAssign(a, ExprInt(0, 32)))
-        if dmem:
-            e.append(ExprAssign(ExprMem(ad + ExprInt(4, 32), size=size), a2))
-    else:
-        if a == PC:
-            dst = PC
-            e.append(ExprAssign(ir.IRDst, m))
-        e.append(ExprAssign(a, m))
-        if dmem:
-            e.append(ExprAssign(a2, ExprMem(ad + ExprInt(4, 32), size=size)))
-
-    # XXX TODO check multiple write cause by wb
-    if wb or postinc:
-        e.append(ExprAssign(base, base + off))
-
-    return e, []
 
 
 def l_strd(ir, instr, a, b, c=None):
@@ -1626,6 +1530,30 @@ def dmb(ir, instr, a):
     e = []
     return e, []
 
+def ldrex(ir, instr, a, b):
+    e = []
+    return e, []
+
+def strex(ir, instr, a, b, c=None):
+    e = []
+    return e, []
+
+# todo
+def vmov(ir, instr, a, b, c=None):
+    e = []
+    return e, []
+
+# todo
+def vstr(ir, instr, a, b):
+    e = []
+    return e, []
+
+# todo
+def vcvt(ir, instr, a, a2):
+    e = []
+    return e, []
+
+
 def dsb(ir, instr, a):
     # XXX TODO
     e = []
@@ -1927,7 +1855,6 @@ mnemo_condm1 = {'adds': add,
                 'ldrb': ldrb,
                 'ldsb': ldrsb,
                 'strb': strb,
-
                 'vmov': vmov,
                 'vstr': vstr,
                 'vcvt': vcvt
@@ -2181,12 +2108,9 @@ class ir_arml(IntermediateRepresentation):
                 it_instr_irblocks = new_irblocks
 
             irblocks += it_instr_irblocks
-            if len([x for x in assignments if self.IRDst in list(x)]) > 0:
-                pass
-            else:
-                dst = ExprAssign(self.IRDst, ExprLoc(loc_next, 32))
-                dst_blk = AssignBlock([dst], instr)
-                assignments.append(dst_blk)
+            dst = ExprAssign(self.IRDst, ExprLoc(loc_next, 32))
+            dst_blk = AssignBlock([dst], instr)
+            assignments.append(dst_blk)
             irblock = IRBlock(loc, assignments)
             irblocks.append(irblock)
             loc = loc_next

@@ -1,5 +1,4 @@
 """Data flow analysis based on miasm intermediate representation"""
-from __future__ import print_function
 from builtins import range
 from collections import namedtuple, Counter
 from pprint import pprint as pp
@@ -203,8 +202,6 @@ class DiGraphDefUse(DiGraph):
         self._dot_offset = None
         self._blocks = reaching_defs.ircfg.blocks
 
-        self.lock = threading.RLock()
-
         super(DiGraphDefUse, self).__init__(*args, **kwargs)
         self._compute_def_use(reaching_defs,
                               deref_mem=deref_mem,
@@ -217,13 +214,6 @@ class DiGraphDefUse(DiGraph):
         @dst: the destination node of the edge
         """
         return self._edge_attr[(src, dst)]
-
-    def _compute_wrap(self, args):
-        with self.lock:
-            self._progress += 1
-            print("%d" % self._progress, end="\r")
-        block, reaching_defs, deref_mem = args
-        self._compute_def_use_block(block, reaching_defs, deref_mem)
 
     def _compute_def_use(self, reaching_defs,
                          deref_mem=False, apply_simp=False):

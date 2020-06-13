@@ -942,7 +942,6 @@ class metamn(type):
             p = [x[1] for x in p]
             p = [dct['args'].index(x) for x in p]
             dct['args_permut'] = perm_inv(p)
-
         # order fields
         f_ordered = [x for x in enumerate(fields)]
         f_ordered.sort(key=lambda x: (x[1].prio, x[0]))
@@ -1460,9 +1459,7 @@ class cls_mn(with_metaclass(metamn, object)):
                     break
 
                 if f.value is not None and f.l:
-                    if f.value > f.lmask:
-                        can_encode = False 
-                        break
+                    assert f.value <= f.lmask
                     cur_len += f.l
                 index += 1
                 if ret is True:

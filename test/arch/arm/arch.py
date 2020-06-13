@@ -770,10 +770,7 @@ reg_tests_armt = [
 
     ("xxxxxxxx    VSTR       D0, [SP, 0x90]",
      "8DED240B")
-                            
 ]
-
-
 print("#" * 40, 'armthumb', '#' * 40)
 
 for s, l in reg_tests_armt:

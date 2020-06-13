@@ -4,9 +4,8 @@
 *~
 # Compiled python files
 *\.pyc
-# IDE files
+# Other files
 /.idea/
 /venv/
 /.vscode/
-# Other
 miasm/VERSION
