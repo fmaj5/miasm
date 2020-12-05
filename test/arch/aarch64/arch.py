@@ -1730,6 +1730,8 @@ reg_tests_aarch64 = [
 
     ("0006C588    EXTR       W2, W2, W2, 0x1F",
      "427C8213"),
+    ("XXXXXXXX    EXTR       X12, X12, X12, 0x20",
+     "8C81CC93"),
 
     ("00458AB8    CCMP       X3, X5, 0x8, GE",
      "68A045FA"),
@@ -1740,14 +1742,14 @@ reg_tests_aarch64 = [
      "010000D4"),
 
 
-    ("00458FF4    MRS        X0, 0x3, c13, c0, 0x2",
+    ("00458FF4    MRS        X0, 0x3, 0x3, c13, c0, 0x2",
      "40D03BD5"),
-    ("0045BA04    MSR        0x3, c13, c0, 0x2, X0",
+    ("0045BA04    MSR        0x3, 0x3, c13, c0, 0x2, X0",
      "40D01BD5"),
-    ("0048A2E8    MRS        X13, 0x3, c4, c4, 0x0",
-     "0D443BD5"),
-    ("0048A9DC    MRS        X0, 0x3, c4, c4, 0x1",
-     "20443BD5"),
+    ("0048A2E8    MRS        X8, 0x3, 0x3, c4, c2, 0x0",
+     "08423BD5"),
+    ("0048A9DC    MSR        0x3, 0x3, c4, c2, 0x0, X7",
+     "07421BD5"),
 
     ("004010C8    ORR        W2, 0x0, 0x1",
      "E2030032"),
@@ -1823,6 +1825,16 @@ reg_tests_aarch64 = [
     ("XXXXXXXX    STLXRB     W17, W16, [X14]",
      "D0FD1108"),
 
+    ("XXXXXXXX    STLRB      W1, [X0]",
+     "01FC9F08"),
+    ("XXXXXXXX    IC         0x0, c1, 0x0, XZR",
+     "1F7108D5"),
+    ("XXXXXXXX    CLREX      0xF",
+     "5F3F03D5"),
+    ("XXXXXXXX    TLBI       0x0, c7, 0x0, XZR",
+     "1F8708D5"),
+    ("XXXXXXXX    YIELD      ",
+     "3F2003D5")
 ]
 
 

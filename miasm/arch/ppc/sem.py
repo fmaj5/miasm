@@ -418,7 +418,7 @@ def mn_mtspr(ir, instr, arg1, arg2):
                  ExprAssign(exception_flags, ExprInt(EXCEPT_SPR_ACCESS, 32)) ], []
 
 def mn_mtsr(ir, instr, sr, rs):
-    srid = sr.arg.arg
+    srid = sr.arg
     return [ ExprAssign(sr_dict[srid], rs) ], []
 
 # TODO
@@ -426,7 +426,7 @@ def mn_mtsr(ir, instr, sr, rs):
 #    return [ ExprAssign(sr_dict[rb[0:3]], rs) ], []
 
 def mn_mfsr(ir, instr, rd, sr):
-    srid = sr.arg.arg
+    srid = sr.arg
     return [ ExprAssign(rd, sr_dict[srid]) ], []
 
 # TODO
@@ -675,8 +675,8 @@ def mn_do_store(ir, instr, arg1, arg2, arg3=None):
         ret.append(ExprAssign(ir.IRDst, loc_next))
         dont = flags + [ ExprAssign(CR0_EQ, ExprInt(0,1)),
                          ExprAssign(ir.IRDst, loc_next) ]
-        additional_ir = [ IRBlock(loc_do.loc_key, [ AssignBlock(ret) ]),
-                          IRBlock(loc_dont.loc_key, [ AssignBlock(dont) ]) ]
+        additional_ir = [ IRBlock(ir.loc_db, loc_do.loc_key, [ AssignBlock(ret) ]),
+                          IRBlock(ir.loc_db, loc_dont.loc_key, [ AssignBlock(dont) ]) ]
         ret = [ ExprAssign(reserve, ExprInt(0, 1)),
                 ExprAssign(ir.IRDst, ExprCond(reserve, loc_do, loc_dont)) ]
 
@@ -899,7 +899,7 @@ sem_dir = {
 
 class ir_ppc32b(IntermediateRepresentation):
 
-    def __init__(self, loc_db=None):
+    def __init__(self, loc_db):
         super(ir_ppc32b, self).__init__(mn_ppc, 'b', loc_db)
         self.pc = mn_ppc.getpc()
         self.sp = mn_ppc.getsp()

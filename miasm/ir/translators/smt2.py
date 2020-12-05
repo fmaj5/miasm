@@ -4,6 +4,8 @@ import logging
 
 from miasm.ir.translators.translator import Translator
 from miasm.expression.smt2_helper import *
+from miasm.expression.expression import ExprCond, ExprInt
+
 
 log = logging.getLogger("translator_smt2")
 console_handler = logging.StreamHandler()
@@ -133,7 +135,7 @@ class TranslatorSMT2(Translator):
         self.loc_db = loc_db
 
     def from_ExprInt(self, expr):
-        return bit_vec_val(expr.arg.arg, expr.size)
+        return bit_vec_val(int(expr), expr.size)
 
     def from_ExprId(self, expr):
         if str(expr) not in self._bitvectors:
@@ -226,6 +228,8 @@ class TranslatorSMT2(Translator):
                     res = bv_rotate_left(res, arg, expr.size)
                 elif expr.op == ">>>":
                     res = bv_rotate_right(res, arg, expr.size)
+                elif expr.op == "==":
+                    res = self.from_expr(ExprCond(expr.args[0] - expr.args[1], ExprInt(0, 1), ExprInt(1, 1)))
                 else:
                     raise NotImplementedError("Unsupported OP yet: %s" % expr.op)
         elif expr.op == 'parity':

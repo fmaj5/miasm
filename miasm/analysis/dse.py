@@ -66,7 +66,6 @@ from miasm.expression.expression_helper import possible_values
 from miasm.ir.translators import Translator
 from miasm.analysis.expression_range import expr_range
 from miasm.analysis.modularintervals import ModularIntervals
-from miasm.core.locationdb import LocationDB
 
 DriftInfo = namedtuple("DriftInfo", ["symbol", "computed", "expected"])
 
@@ -162,9 +161,9 @@ class DSEEngine(object):
     """
     SYMB_ENGINE = ESETrackModif
 
-    def __init__(self, machine):
+    def __init__(self, machine, loc_db):
         self.machine = machine
-        self.loc_db = LocationDB()
+        self.loc_db = loc_db
         self.handler = {} # addr -> callback(DSEEngine instance)
         self.instrumentation = {} # addr -> callback(DSEEngine instance)
         self.addr_to_cacheblocks = {} # addr -> {label -> IRBlock}
@@ -250,7 +249,7 @@ class DSEEngine(object):
     def add_lib_handler(self, libimp, namespace):
         """Add search for handler based on a @libimp libimp instance
 
-        Known functions will be looked by {name}_symb in the @namespace
+        Known functions will be looked by {name}_symb or {name}_{ord}_symb in the @namespace
         """
         namespace = dict(
             (force_bytes(name), func) for name, func in viewitems(namespace)
@@ -258,12 +257,18 @@ class DSEEngine(object):
 
         # lambda cannot contain statement
         def default_func(dse):
-            fname = b"%s_symb" % force_bytes(libimp.fad2cname[dse.jitter.pc])
+            fname = libimp.fad2cname[dse.jitter.pc]
+            if isinstance(fname, tuple):
+                fname = b"%s_%d_symb" % (force_bytes(fname[0]), fname[1])
+            else:
+                fname = b"%s_symb" % force_bytes(fname)
             raise RuntimeError("Symbolic stub '%s' not found" % fname)
 
         for addr, fname in viewitems(libimp.fad2cname):
-            fname = force_bytes(fname)
-            fname = b"%s_symb" % fname
+            if isinstance(fname, tuple):
+                fname = b"%s_%d_symb" % (force_bytes(fname[0]), fname[1])
+            else:
+                fname = b"%s_symb" % force_bytes(fname)
             func = namespace.get(fname, None)
             if func is not None:
                 self.add_handler(addr, func)
@@ -521,13 +526,13 @@ class DSEPathConstraint(DSEEngine):
     PRODUCE_SOLUTION_BRANCH_COV = 2
     PRODUCE_SOLUTION_PATH_COV = 3
 
-    def __init__(self, machine, produce_solution=PRODUCE_SOLUTION_CODE_COV,
+    def __init__(self, machine, loc_db, produce_solution=PRODUCE_SOLUTION_CODE_COV,
                  known_solutions=None,
                  **kwargs):
         """Init a DSEPathConstraint
         @machine: Machine of the targeted architecture instance
         @produce_solution: (optional) if set, new solutions will be computed"""
-        super(DSEPathConstraint, self).__init__(machine, **kwargs)
+        super(DSEPathConstraint, self).__init__(machine, loc_db, **kwargs)
 
         # Dependency check
         assert z3 is not None

@@ -55,6 +55,20 @@ class moduint(object):
     def __div__(self, y):
         # Python: 8 / -7 == -2 (C-like: -1)
         # int(float) trick cannot be used, due to information loss
+        # Examples:
+        #
+        # 42 / 10 => 4
+        # 42 % 10 => 2
+        #
+        # -42 / 10 => -4
+        # -42 % 10 => -2
+        #
+        # 42 / -10 => -4
+        # 42 % -10 => 2
+        #
+        # -42 / -10 => 4
+        # -42 % -10 => -2
+
         den = int(y)
         num = int(self)
         result_sign = 1 if (den * num) >= 0 else -1
@@ -214,9 +228,6 @@ class modint(moduint):
 def is_modint(a):
     return isinstance(a, moduint)
 
-
-def size2mask(size):
-    return (1 << size) - 1
 
 mod_size2uint = {}
 mod_size2int = {}

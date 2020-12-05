@@ -3,7 +3,7 @@ from miasm.ir.ir import IntermediateRepresentation, IRBlock, AssignBlock
 from miasm.arch.mips32.arch import mn_mips32
 from miasm.arch.mips32.regs import R_LO, R_HI, PC, RA, ZERO, exception_flags
 from miasm.core.sembuilder import SemBuilder
-from miasm.jitter.csts import EXCEPT_DIV_BY_ZERO
+from miasm.jitter.csts import EXCEPT_DIV_BY_ZERO, EXCEPT_SOFT_BP
 
 
 # SemBuilder context
@@ -393,6 +393,11 @@ def tlbwr():
 def tlbr():
     "TODO XXX"
 
+def break_(ir, instr):
+    e = []
+    e.append(ExprAssign(exception_flags, ExprInt(EXCEPT_SOFT_BP, 32)))
+    return e, []
+
 def ins(ir, instr, a, b, c, d):
     e = []
     pos = int(c)
@@ -524,7 +529,7 @@ def mtlo(arg1):
 
 def clz(ir, instr, rs, rd):
     e = []
-    e.append(ExprAssign(rd, ExprOp('cntleadzeros', rs)))
+    e.append(m2_expr.ExprAssign(rd, m2_expr.ExprOp('cntleadzeros', rs)))
     return e, []
 
 def teq(ir, instr, arg1, arg2):
@@ -538,7 +543,7 @@ def teq(ir, instr, arg1, arg2):
     do_except.append(m2_expr.ExprAssign(exception_flags, m2_expr.ExprInt(
         EXCEPT_DIV_BY_ZERO, exception_flags.size)))
     do_except.append(m2_expr.ExprAssign(ir.IRDst, loc_next_expr))
-    blk_except = IRBlock(loc_except, [AssignBlock(do_except, instr)])
+    blk_except = IRBlock(ir.loc_db, loc_except, [AssignBlock(do_except, instr)])
 
     cond = arg1 - arg2
 
@@ -560,7 +565,7 @@ def tne(ir, instr, arg1, arg2):
     do_except.append(m2_expr.ExprAssign(exception_flags, m2_expr.ExprInt(
         EXCEPT_DIV_BY_ZERO, exception_flags.size)))
     do_except.append(m2_expr.ExprAssign(ir.IRDst, loc_next_expr))
-    blk_except = IRBlock(loc_except, [AssignBlock(do_except, instr)])
+    blk_except = IRBlock(ir.loc_db, loc_except, [AssignBlock(do_except, instr)])
 
     cond = arg1 ^ arg2
 
@@ -599,7 +604,8 @@ mnemo_func.update({
         'xori': l_xor,
         'clz': clz,
         'teq': teq,
-        'tne': tne
+        'tne': tne,
+        'break': break_
         })
 
 def get_mnemo_expr(ir, instr, *args):
@@ -608,7 +614,7 @@ def get_mnemo_expr(ir, instr, *args):
 
 class ir_mips32l(IntermediateRepresentation):
 
-    def __init__(self, loc_db=None):
+    def __init__(self, loc_db):
         IntermediateRepresentation.__init__(self, mn_mips32, 'l', loc_db)
         self.pc = mn_mips32.getpc()
         self.sp = mn_mips32.getsp()
@@ -641,7 +647,7 @@ class ir_mips32l(IntermediateRepresentation):
         return self.loc_db.get_or_create_offset_location(instr.offset + 16)
 
 class ir_mips32b(ir_mips32l):
-    def __init__(self, loc_db=None):
+    def __init__(self, loc_db):
         self.addrsize = 32
         IntermediateRepresentation.__init__(self, mn_mips32, 'b', loc_db)
         self.pc = mn_mips32.getpc()
